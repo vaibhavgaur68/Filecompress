@@ -1,256 +1,938 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Workspace</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-  <style>
-    /* ================================================
-       DESIGN TOKENS — Deep Dark / Neon Accents
-    ================================================ */
-    :root {
-      --bg: #07070a;
-      --surface: #12121a;
-      --surface-hover: #1c1c28;
-      --border: #2a2a34;
-      --text-main: #ebebf0;
-      --text-muted: #9898a8;
-      --f-display: 'Syne', sans-serif;
-      --f-mono: 'DM Mono', monospace;
-      --radius: 12px;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CutOut — Background Remover</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400;500&display=swap');
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    
-    body {
-      background-color: var(--bg);
-      background-image: radial-gradient(circle at 50% 0%, rgba(255,255,255,0.03) 0%, transparent 70%);
-      color: var(--text-main);
-      font-family: var(--f-mono);
-      line-height: 1.6;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* ── Header / Welcome ── */
-    header {
-      text-align: center;
-      padding: 80px 24px 40px;
-    }
-    
-    h1 {
-      font-family: var(--f-display);
-      font-size: clamp(2.5rem, 5vw, 4rem);
-      font-weight: 800;
-      letter-spacing: -0.04em;
-      margin-bottom: 16px;
-    }
-    
-    header p {
-      color: var(--text-muted);
-      max-width: 500px;
-      margin: 0 auto;
-      font-size: 1rem;
-    }
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1c1c28;
+    --border: #2a2a3d;
+    --accent: #c8ff00;
+    --accent2: #ff6b35;
+    --text: #f0f0f8;
+    --muted: #6b6b8a;
+    --radius: 16px;
+  }
 
-    /* ── Main Grid Layout ── */
-    main {
-      flex: 1;
-      width: 100%;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 24px 80px;
-    }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    overflow-x: hidden;
+  }
 
-    /* This is the better way: auto-fit handles responsiveness automatically */
-    .tools-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 24px;
-      margin-top: 40px;
-    }
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 9999; opacity: 0.35;
+  }
 
-    /* ── Tool Cards ── */
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 32px 24px;
-      text-decoration: none;
-      color: inherit;
-      display: flex;
-      flex-direction: column;
-      transition: all 0.2s ease-out;
-      position: relative;
-      overflow: hidden;
-    }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 24px 48px;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0;
+    background: rgba(10,10,15,0.85);
+    backdrop-filter: blur(20px);
+    z-index: 100;
+  }
 
-    .card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0; height: 3px;
-      background: var(--accent, #555);
-      opacity: 0.4;
-      transition: opacity 0.2s;
-    }
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 1.5rem;
+    letter-spacing: -0.03em;
+  }
+  .logo span { color: var(--accent); }
 
-    .card:hover {
-      background: var(--surface-hover);
-      transform: translateY(-4px);
-      border-color: var(--accent, var(--border));
-      box-shadow: 0 12px 32px rgba(0,0,0,0.5);
-    }
-    
-    .card:hover::before { opacity: 1; }
-    .card.disabled { opacity: 0.5; pointer-events: none; }
+  .badge {
+    font-size: 0.65rem; font-weight: 500;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 4px 10px; border-radius: 20px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
 
-    .card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-    }
+  main {
+    max-width: 1100px; margin: 0 auto;
+    padding: 60px 24px 100px;
+  }
 
-    .card-icon {
-      font-size: 1.8rem;
-      background: rgba(255,255,255,0.05);
-      width: 48px; height: 48px;
-      display: flex; align-items: center; justify-content: center;
-      border-radius: 8px;
-    }
+  .hero {
+    text-align: center; margin-bottom: 64px;
+  }
+  .hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: clamp(2.5rem, 6vw, 4.5rem);
+    line-height: 1.05; letter-spacing: -0.04em;
+    margin-bottom: 16px;
+  }
+  .hero h1 em {
+    font-style: normal; color: var(--accent);
+    position: relative;
+  }
+  .hero p {
+    color: var(--muted); font-size: 0.95rem;
+    line-height: 1.7; max-width: 420px; margin: 0 auto;
+  }
 
-    .card-status {
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      padding: 4px 10px;
-      border-radius: 20px;
-      background: rgba(255,255,255,0.05);
-      color: var(--text-muted);
-      border: 1px solid var(--border);
-    }
+  /* Upload Zone */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    padding: 72px 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative; overflow: hidden;
+    margin-bottom: 32px;
+  }
+  .upload-zone::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(200,255,0,0.04) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(200,255,0,0.03);
+    transform: translateY(-2px);
+  }
+  .upload-zone.drag-over { border-style: solid; }
 
-    .card h2 {
-      font-family: var(--f-display);
-      font-size: 1.4rem;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
+  .upload-icon {
+    width: 56px; height: 56px;
+    border-radius: 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 1.5rem;
+  }
+  .upload-zone h3 {
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 1.1rem; margin-bottom: 8px;
+  }
+  .upload-zone p { color: var(--muted); font-size: 0.8rem; }
+  .upload-zone input { display: none; }
 
-    .card p {
-      color: var(--text-muted);
-      font-size: 0.9rem;
-      flex: 1;
-    }
+  /* Controls */
+  .controls-row {
+    display: flex; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 32px; align-items: center;
+  }
 
-    /* ── Footer / About ── */
-    footer {
-      border-top: 1px solid var(--border);
-      padding: 40px 24px;
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 0.85rem;
-      background: rgba(7,7,10,0.8);
-    }
+  .ctrl-group {
+    display: flex; flex-direction: column; gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    flex: 1; min-width: 180px;
+  }
+  .ctrl-label {
+    font-size: 0.65rem; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--muted);
+  }
 
-    .footer-content {
-      max-width: 600px;
-      margin: 0 auto;
-    }
-  </style>
+  .color-row {
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  }
+  .color-swatch {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 2px solid transparent;
+    cursor: pointer; transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .color-swatch:hover { transform: scale(1.15); }
+  .color-swatch.active { border-color: var(--accent); }
+  .color-swatch.transparent-sw {
+    background: repeating-conic-gradient(#444 0% 25%, #222 0% 50%) 0 0 / 12px 12px;
+  }
+
+  input[type="color"] {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 2px solid var(--border);
+    padding: 2px; background: var(--surface2);
+    cursor: pointer;
+  }
+  input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; border-radius: 6px; }
+  input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
+
+  .slider-wrap {
+    display: flex; align-items: center; gap: 10px;
+  }
+  input[type="range"] {
+    flex: 1; -webkit-appearance: none;
+    height: 4px; background: var(--border);
+    border-radius: 2px; outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+  }
+  .slider-val {
+    font-size: 0.75rem; color: var(--accent);
+    min-width: 28px; text-align: right;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 24px; border-radius: 10px;
+    font-family: 'DM Mono', monospace; font-size: 0.8rem;
+    font-weight: 500; cursor: pointer; border: none;
+    transition: all 0.2s; letter-spacing: 0.02em;
+    text-decoration: none;
+  }
+  .btn-primary {
+    background: var(--accent); color: #0a0a0f;
+    font-weight: 700;
+  }
+  .btn-primary:hover { background: #d4ff1a; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(200,255,0,0.25); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .btn-ghost {
+    background: var(--surface2); color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-download {
+    background: var(--accent2); color: #fff; font-weight: 700;
+  }
+  .btn-download:hover { background: #ff7f50; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(255,107,53,0.3); }
+
+  .action-row {
+    display: flex; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 40px;
+  }
+
+  /* Progress */
+  .progress-wrap {
+    display: none; margin-bottom: 24px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px 24px;
+  }
+  .progress-wrap.visible { display: block; }
+  .progress-top {
+    display: flex; justify-content: space-between;
+    font-size: 0.75rem; color: var(--muted); margin-bottom: 10px;
+  }
+  .progress-bar {
+    height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: var(--accent);
+    border-radius: 2px; width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  /* Canvas area */
+  .canvas-area {
+    display: none; gap: 24px;
+  }
+  .canvas-area.visible { display: grid; grid-template-columns: 1fr 1fr; }
+
+  @media (max-width: 700px) {
+    .canvas-area.visible { grid-template-columns: 1fr; }
+    header { padding: 16px 20px; }
+    main { padding: 40px 16px 80px; }
+  }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .panel-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.7rem; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--muted);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .panel-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent);
+  }
+  .panel-body {
+    padding: 20px;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 260px;
+    background: repeating-conic-gradient(#1a1a24 0% 25%, #141420 0% 50%) 0 0 / 20px 20px;
+  }
+  .panel-body canvas {
+    max-width: 100%; max-height: 400px;
+    border-radius: 8px;
+    display: block;
+  }
+
+  /* Algo select */
+  select {
+    background: var(--surface2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 10px; font-family: 'DM Mono', monospace;
+    font-size: 0.75rem; outline: none; cursor: pointer;
+    width: 100%;
+  }
+  select:focus { border-color: var(--accent); }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 24px;
+    font-size: 0.8rem; color: var(--text);
+    transition: transform 0.3s ease; z-index: 1000;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: var(--accent); color: var(--accent); }
+  .toast.error { border-color: var(--accent2); color: var(--accent2); }
+
+  /* Hidden canvas */
+  #workCanvas { display: none; }
+
+  .step-hint {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.7rem; color: var(--muted);
+    margin-top: 8px;
+  }
+  .step-hint span { color: var(--accent); }
+</style>
 </head>
 <body>
 
-  <header>
-    <h1>The Workspace</h1>
-    <p>A collection of privacy-first, client-side utilities and applications. Zero telemetry, no data collection.</p>
-  </header>
+<header>
+  <div class="logo">Cut<span>Out</span></div>
+  <div class="badge">100% Local · No Upload · Free</div>
+</header>
 
-  <main>
-    <div class="tools-grid" id="toolsGrid">
-      </div>
-  </main>
+<main>
+  <div class="hero">
+    <h1>Remove backgrounds<br><em>instantly.</em></h1>
+    <p>Powered entirely by your browser. Your images never leave your device.</p>
+  </div>
 
-  <footer>
-    <div class="footer-content">
-      <p>100% Local Execution. All data processing happens on your device.</p>
-      <p style="margin-top: 8px; opacity: 0.5;">System operational.</p>
+  <!-- Upload Zone -->
+  <div class="upload-zone" id="uploadZone">
+    <div class="upload-icon">🖼</div>
+    <h3>Drop your image here</h3>
+    <p>PNG, JPG, WEBP — up to 20 MB</p>
+    <input type="file" id="fileInput" accept="image/*">
+  </div>
+
+  <!-- Controls -->
+  <div class="controls-row" id="controlsRow" style="display:none">
+    <div class="ctrl-group" style="min-width:220px">
+      <div class="ctrl-label">Algorithm</div>
+      <select id="algoSelect">
+        <option value="fuzzy">Fuzzy Flood Fill (edges)</option>
+        <option value="kmeans">K-Means Color Cluster</option>
+        <option value="edge">Edge-Aware Grab Cut</option>
+      </select>
+      <div class="step-hint">Fuzzy works best for plain backgrounds. <span>Try all three.</span></div>
     </div>
-  </footer>
 
-  <script>
-    // ==========================================
-    // TOOL DIRECTORY DATA
-    // To add a new tool, simply add a new object to this array.
-    // ==========================================
-    const tools = [
-      {
-        id: 'nullpress',
-        name: 'NULLPRESS',
-        desc: 'Iterative file compressor. Handles images and PDFs. Nuke-on-save architecture.',
-        url: '/nullpress', // Change to your actual path
-        icon: '⚡',
-        accent: '#22d3ee', // Cyan from the tool
-        status: 'Active'
-      },
-      {
-        id: 'cutout',
-        name: 'CutOut',
-        desc: 'Browser-based background removal using Fuzzy Flood Fill and K-Means clustering.',
-        url: '/cutout', // Change to your actual path
-        icon: '🖼',
-        accent: '#c8ff00', // Lime from the tool
-        status: 'Active'
-      },
-      {
-        id: 'focusos',
-        name: 'FocusOS',
-        desc: 'Study planner and scheduling interface with cognitive load limiting capabilities.',
-        url: '#', 
-        icon: '⏱',
-        accent: '#fbbf24', 
-        status: 'In Dev'
-      },
-      {
-        id: 'ghostprotocol',
-        name: 'Ghost Protocol',
-        desc: 'Secure messaging application with nuke-on-download storage strategy.',
-        url: '#',
-        icon: '👁‍🗨',
-        accent: '#f87171',
-        status: 'Planning'
+    <div class="ctrl-group" style="min-width:180px">
+      <div class="ctrl-label">Tolerance</div>
+      <div class="slider-wrap">
+        <input type="range" id="toleranceSlider" min="5" max="120" value="35">
+        <span class="slider-val" id="tolVal">35</span>
+      </div>
+      <div class="step-hint">Higher = removes more background</div>
+    </div>
+
+    <div class="ctrl-group" style="min-width:180px">
+      <div class="ctrl-label">Edge Feather</div>
+      <div class="slider-wrap">
+        <input type="range" id="featherSlider" min="0" max="8" value="1">
+        <span class="slider-val" id="featherVal">1</span>
+      </div>
+      <div class="step-hint">Softens the removal boundary</div>
+    </div>
+
+    <div class="ctrl-group" style="min-width:240px">
+      <div class="ctrl-label">Output Background</div>
+      <div class="color-row">
+        <div class="color-swatch transparent-sw active" data-color="transparent" title="Transparent"></div>
+        <div class="color-swatch" style="background:#ffffff" data-color="#ffffff" title="White"></div>
+        <div class="color-swatch" style="background:#000000" data-color="#000000" title="Black"></div>
+        <div class="color-swatch" style="background:#c8ff00" data-color="#c8ff00" title="Lime"></div>
+        <div class="color-swatch" style="background:#ff6b35" data-color="#ff6b35" title="Orange"></div>
+        <div class="color-swatch" style="background:#4f8ef7" data-color="#4f8ef7" title="Blue"></div>
+        <input type="color" id="customColor" title="Custom color" value="#a855f7">
+      </div>
+    </div>
+  </div>
+
+  <!-- Action buttons -->
+  <div class="action-row" id="actionRow" style="display:none">
+    <button class="btn btn-primary" id="processBtn">⚡ Remove Background</button>
+    <button class="btn btn-ghost" id="resetBtn">↺ Reset</button>
+    <button class="btn btn-download" id="downloadBtn" disabled>↓ Download PNG</button>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-top">
+      <span id="progressLabel">Processing…</span>
+      <span id="progressPct">0%</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <!-- Canvas panels -->
+  <div class="canvas-area" id="canvasArea">
+    <div class="panel">
+      <div class="panel-header">
+        <span>Original</span>
+        <div class="panel-dot" style="background:var(--muted)"></div>
+      </div>
+      <div class="panel-body">
+        <canvas id="originalCanvas"></canvas>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <span>Result</span>
+        <div class="panel-dot"></div>
+      </div>
+      <div class="panel-body">
+        <canvas id="resultCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Hidden work canvas -->
+<canvas id="workCanvas"></canvas>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────
+let originalImageData = null;
+let resultImageData = null;
+let outputBg = 'transparent';
+let currentImg = null;
+
+// ─── DOM refs ─────────────────────────────────────────────────
+const uploadZone  = document.getElementById('uploadZone');
+const fileInput   = document.getElementById('fileInput');
+const controlsRow = document.getElementById('controlsRow');
+const actionRow   = document.getElementById('actionRow');
+const canvasArea  = document.getElementById('canvasArea');
+const progressWrap= document.getElementById('progressWrap');
+const progressFill= document.getElementById('progressFill');
+const progressLabel=document.getElementById('progressLabel');
+const progressPct = document.getElementById('progressPct');
+const processBtn  = document.getElementById('processBtn');
+const resetBtn    = document.getElementById('resetBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const origCanvas  = document.getElementById('originalCanvas');
+const resultCanvas= document.getElementById('resultCanvas');
+const workCanvas  = document.getElementById('workCanvas');
+const tolSlider   = document.getElementById('toleranceSlider');
+const featherSlider=document.getElementById('featherSlider');
+const tolVal      = document.getElementById('tolVal');
+const featherVal  = document.getElementById('featherVal');
+const algoSelect  = document.getElementById('algoSelect');
+const swatches    = document.querySelectorAll('.color-swatch');
+const customColor = document.getElementById('customColor');
+const toastEl     = document.getElementById('toast');
+
+// ─── Upload handling ──────────────────────────────────────────
+uploadZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => e.target.files[0] && loadImage(e.target.files[0]));
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadImage(f);
+  else showToast('Please drop an image file', 'error');
+});
+
+function loadImage(file) {
+  if (file.size > 20 * 1024 * 1024) { showToast('Image too large (max 20 MB)', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      currentImg = img;
+      // Draw original
+      const maxW = 900, maxH = 700;
+      let w = img.width, h = img.height;
+      if (w > maxW || h > maxH) {
+        const scale = Math.min(maxW / w, maxH / h);
+        w = Math.round(w * scale); h = Math.round(h * scale);
       }
-    ];
+      origCanvas.width = w; origCanvas.height = h;
+      origCanvas.getContext('2d').drawImage(img, 0, 0, w, h);
 
-    // ==========================================
-    // RENDER LOGIC
-    // ==========================================
-    const grid = document.getElementById('toolsGrid');
+      workCanvas.width = w; workCanvas.height = h;
+      workCanvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      originalImageData = workCanvas.getContext('2d').getImageData(0, 0, w, h);
 
-    function renderTools() {
-      grid.innerHTML = tools.map(tool => {
-        const isDisabled = tool.url === '#' ? 'disabled' : '';
-        const statusStyle = tool.status === 'Active' ? `color: ${tool.accent}; border-color: ${tool.accent}40; background: ${tool.accent}10;` : '';
-        
-        return `
-          <a href="${tool.url}" class="card ${isDisabled}" style="--accent: ${tool.accent}">
-            <div class="card-header">
-              <div class="card-icon" style="color: ${tool.accent}">${tool.icon}</div>
-              <div class="card-status" style="${statusStyle}">${tool.status}</div>
-            </div>
-            <h2>${tool.name}</h2>
-            <p>${tool.desc}</p>
-          </a>
-        `;
-      }).join('');
+      resultCanvas.width = w; resultCanvas.height = h;
+
+      controlsRow.style.display = 'flex';
+      actionRow.style.display = 'flex';
+      canvasArea.classList.add('visible');
+      downloadBtn.disabled = true;
+      resultCanvas.getContext('2d').clearRect(0, 0, w, h);
+      showToast('Image loaded — click "Remove Background"', 'success');
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ─── Sliders ──────────────────────────────────────────────────
+tolSlider.addEventListener('input', () => tolVal.textContent = tolSlider.value);
+featherSlider.addEventListener('input', () => featherVal.textContent = featherSlider.value);
+
+// ─── Color swatches ───────────────────────────────────────────
+swatches.forEach(sw => {
+  sw.addEventListener('click', () => {
+    swatches.forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+    outputBg = sw.dataset.color;
+    if (resultImageData) applyBackground();
+  });
+});
+customColor.addEventListener('input', () => {
+  swatches.forEach(s => s.classList.remove('active'));
+  outputBg = customColor.value;
+  if (resultImageData) applyBackground();
+});
+customColor.addEventListener('click', () => {
+  swatches.forEach(s => s.classList.remove('active'));
+  outputBg = customColor.value;
+});
+
+// ─── Process ──────────────────────────────────────────────────
+processBtn.addEventListener('click', async () => {
+  if (!originalImageData) return;
+  processBtn.disabled = true;
+  downloadBtn.disabled = true;
+  progressWrap.classList.add('visible');
+  setProgress(0, 'Analysing image…');
+
+  await sleep(30);
+  const algo = algoSelect.value;
+  const tol = parseInt(tolSlider.value);
+  const feather = parseInt(featherSlider.value);
+
+  try {
+    const mask = await buildMask(algo, tol, feather);
+    setProgress(90, 'Compositing…');
+    await sleep(20);
+    resultImageData = applyMask(originalImageData, mask);
+    applyBackground();
+    setProgress(100, 'Done!');
+    downloadBtn.disabled = false;
+    showToast('Background removed!', 'success');
+  } catch(e) {
+    showToast('Processing failed: ' + e.message, 'error');
+    console.error(e);
+  }
+
+  setTimeout(() => progressWrap.classList.remove('visible'), 1200);
+  processBtn.disabled = false;
+});
+
+// ─── Reset ────────────────────────────────────────────────────
+resetBtn.addEventListener('click', () => {
+  resultCanvas.getContext('2d').clearRect(0, 0, resultCanvas.width, resultCanvas.height);
+  resultImageData = null;
+  downloadBtn.disabled = true;
+  showToast('Reset — adjust settings and try again');
+});
+
+// ─── Download ─────────────────────────────────────────────────
+downloadBtn.addEventListener('click', () => {
+  const link = document.createElement('a');
+  link.download = 'cutout-' + Date.now() + '.png';
+  link.href = resultCanvas.toDataURL('image/png');
+  link.click();
+  showToast('Downloaded!', 'success');
+});
+
+// ─────────────────────────────────────────────────────────────
+//  CORE ALGORITHMS
+// ─────────────────────────────────────────────────────────────
+
+async function buildMask(algo, tolerance, feather) {
+  const { width: w, height: h, data } = originalImageData;
+  const mask = new Uint8Array(w * h); // 0 = bg (remove), 255 = fg (keep)
+
+  if (algo === 'fuzzy') {
+    setProgress(10, 'Running Flood Fill…');
+    await sleep(10);
+    // Sample corners & edges for background color
+    const bgSamples = sampleEdgeColors(data, w, h, 12);
+    const bgColor = averageColor(bgSamples);
+    floodFillMask(data, mask, w, h, bgColor, tolerance);
+    setProgress(55, 'Flood fill complete…');
+    await sleep(10);
+    // second pass with slightly lower tolerance for missed patches
+    floodFillMask(data, mask, w, h, bgColor, Math.max(8, tolerance - 10), false);
+
+  } else if (algo === 'kmeans') {
+    setProgress(10, 'Clustering colours…');
+    await sleep(10);
+    const K = 4;
+    const clusters = kMeans(data, w * h, K, 12);
+    setProgress(45, 'Identifying background cluster…');
+    await sleep(10);
+    // The background cluster is likely the one most present on image edges
+    const bgClusterIdx = findBgCluster(clusters, data, w, h);
+    clusters.forEach((c, ci) => {
+      if (ci === bgClusterIdx) return;
+    });
+    for (let i = 0; i < w * h; i++) {
+      const px = i * 4;
+      const ci = nearestCluster(data[px], data[px+1], data[px+2], clusters);
+      mask[i] = ci === bgClusterIdx ? 0 : 255;
     }
+    setProgress(70, 'Masking…');
+    await sleep(10);
 
-    // Execute render on load
-    renderTools();
-  </script>
+  } else { // edge-aware
+    setProgress(10, 'Edge detection…');
+    await sleep(10);
+    const gray = toGrayscale(data, w, h);
+    const edges = sobelEdges(gray, w, h);
+    setProgress(35, 'Flood fill with edge constraints…');
+    await sleep(10);
+    const bgSamples = sampleEdgeColors(data, w, h, 16);
+    const bgColor = averageColor(bgSamples);
+    edgeAwareFill(data, mask, edges, w, h, bgColor, tolerance);
+    setProgress(70, 'Refining…');
+    await sleep(10);
+  }
 
+  setProgress(75, 'Growing foreground…');
+  await sleep(10);
+  // Morphological close to fill small holes in subject
+  morphClose(mask, w, h, 2);
+
+  if (feather > 0) {
+    setProgress(82, 'Feathering edges…');
+    await sleep(10);
+    featherMask(mask, w, h, feather);
+  }
+
+  setProgress(88, 'Finalizing…');
+  return mask;
+}
+
+// ── Flood fill background removal ─────────────────────────────
+function floodFillMask(data, mask, w, h, bgColor, tol, initCorners = true) {
+  const seeds = [];
+  if (initCorners) {
+    // Seed from all four corners and edge midpoints
+    const pts = [
+      [0,0],[w-1,0],[0,h-1],[w-1,h-1],
+      [Math.floor(w/2),0],[Math.floor(w/2),h-1],
+      [0,Math.floor(h/2)],[w-1,Math.floor(h/2)]
+    ];
+    pts.forEach(([x,y]) => {
+      const i = y*w+x;
+      if (mask[i] === 0 && colorDist(data, i*4, bgColor) < tol * 1.6) seeds.push(i);
+    });
+  } else {
+    // Re-seed unmapped pixels from edges
+    for (let x = 0; x < w; x++) {
+      [[x,0],[x,h-1]].forEach(([px,py]) => {
+        const i = py*w+px;
+        if (mask[i] === 0) seeds.push(i);
+      });
+    }
+  }
+
+  const visited = new Uint8Array(w * h);
+  const queue = [...seeds];
+  seeds.forEach(i => visited[i] = 1);
+
+  const dirs = [-1, 1, -w, w];
+  while (queue.length) {
+    const idx = queue.pop();
+    if (colorDist(data, idx*4, bgColor) < tol) {
+      mask[idx] = 0; // mark as background
+      for (const d of dirs) {
+        const ni = idx + d;
+        if (ni < 0 || ni >= w*h) continue;
+        // Prevent horizontal wrap
+        if (d === -1 && idx % w === 0) continue;
+        if (d === 1 && idx % w === w-1) continue;
+        if (!visited[ni]) { visited[ni] = 1; queue.push(ni); }
+      }
+    } else {
+      mask[idx] = 255; // foreground
+    }
+  }
+  // Everything not reached by flood is foreground
+  for (let i = 0; i < mask.length; i++) if (mask[i] === 0 && !visited[i]) mask[i] = 255;
+}
+
+// ── Edge-aware fill ────────────────────────────────────────────
+function edgeAwareFill(data, mask, edges, w, h, bgColor, tol) {
+  const seeds = [];
+  for (let x = 0; x < w; x++) { seeds.push(x); seeds.push((h-1)*w+x); }
+  for (let y = 1; y < h-1; y++) { seeds.push(y*w); seeds.push(y*w+w-1); }
+
+  const visited = new Uint8Array(w*h);
+  const queue = [];
+  seeds.forEach(i => { if (!visited[i]) { visited[i]=1; queue.push(i); } });
+
+  const dirs = [-1,1,-w,w];
+  while (queue.length) {
+    const idx = queue.pop();
+    const d = colorDist(data, idx*4, bgColor);
+    // Stop at strong edges or when color deviates significantly
+    if (d < tol && edges[idx] < 60) {
+      mask[idx] = 0;
+      for (const dir of dirs) {
+        const ni = idx + dir;
+        if (ni < 0 || ni >= w*h) continue;
+        if (dir === -1 && idx%w===0) continue;
+        if (dir === 1 && idx%w===w-1) continue;
+        if (!visited[ni]) { visited[ni]=1; queue.push(ni); }
+      }
+    } else {
+      mask[idx] = 255;
+    }
+  }
+  for (let i = 0; i < mask.length; i++) if (!visited[i]) mask[i] = 255;
+}
+
+// ── K-Means ────────────────────────────────────────────────────
+function kMeans(data, n, K, maxIter) {
+  // Init centroids by sampling spread pixels
+  const step = Math.floor(n / K);
+  let centroids = Array.from({length:K}, (_,i) => {
+    const p = (i * step * 4);
+    return [data[p], data[p+1], data[p+2]];
+  });
+
+  let labels = new Int32Array(n);
+  for (let iter = 0; iter < maxIter; iter++) {
+    // Assign
+    for (let i = 0; i < n; i++) {
+      const p = i*4;
+      let best = 0, bestD = Infinity;
+      for (let k = 0; k < K; k++) {
+        const dr=data[p]-centroids[k][0], dg=data[p+1]-centroids[k][1], db=data[p+2]-centroids[k][2];
+        const d = dr*dr+dg*dg+db*db;
+        if (d < bestD) { bestD=d; best=k; }
+      }
+      labels[i] = best;
+    }
+    // Update centroids
+    const sums = Array.from({length:K}, ()=>[0,0,0,0]);
+    for (let i = 0; i < n; i++) {
+      const k=labels[i], p=i*4;
+      sums[k][0]+=data[p]; sums[k][1]+=data[p+1]; sums[k][2]+=data[p+2]; sums[k][3]++;
+    }
+    centroids = sums.map(s => s[3]>0 ? [s[0]/s[3],s[1]/s[3],s[2]/s[3]] : [0,0,0]);
+  }
+  return { centroids, labels };
+}
+
+function findBgCluster({centroids,labels}, data, w, h) {
+  const counts = new Array(centroids.length).fill(0);
+  // Count how often each cluster appears on the image border
+  for (let x=0; x<w; x++) { counts[labels[x]]++; counts[labels[(h-1)*w+x]]++; }
+  for (let y=1; y<h-1; y++) { counts[labels[y*w]]++; counts[labels[y*w+w-1]]++; }
+  return counts.indexOf(Math.max(...counts));
+}
+
+function nearestCluster(r,g,b,{centroids}) {
+  let best=0, bestD=Infinity;
+  centroids.forEach((c,i) => {
+    const d=(r-c[0])**2+(g-c[1])**2+(b-c[2])**2;
+    if(d<bestD){bestD=d;best=i;}
+  });
+  return best;
+}
+
+// ── Morphological close ────────────────────────────────────────
+function morphClose(mask, w, h, r) {
+  dilate(mask, w, h, r);
+  erode(mask, w, h, r);
+}
+
+function dilate(mask, w, h, r) {
+  const copy = mask.slice();
+  for (let y=r; y<h-r; y++) for (let x=r; x<w-r; x++) {
+    if (copy[y*w+x] === 255) continue;
+    outer: for (let dy=-r; dy<=r; dy++) for (let dx=-r; dx<=r; dx++) {
+      if (copy[(y+dy)*w+(x+dx)] === 255) { mask[y*w+x]=255; break outer; }
+    }
+  }
+}
+
+function erode(mask, w, h, r) {
+  const copy = mask.slice();
+  for (let y=r; y<h-r; y++) for (let x=r; x<w-r; x++) {
+    if (copy[y*w+x] === 0) continue;
+    for (let dy=-r; dy<=r; dy++) for (let dx=-r; dx<=r; dx++) {
+      if (copy[(y+dy)*w+(x+dx)] === 0) { mask[y*w+x]=0; }
+    }
+  }
+}
+
+// ── Feather mask ───────────────────────────────────────────────
+function featherMask(mask, w, h, radius) {
+  const float = new Float32Array(mask);
+  const kernel = gaussKernel(radius);
+  const tmp = new Float32Array(w * h);
+  // Horizontal pass
+  for (let y=0; y<h; y++) for (let x=0; x<w; x++) {
+    let s=0, wt=0;
+    for (let k=-radius; k<=radius; k++) {
+      const nx = x+k;
+      if (nx<0||nx>=w) continue;
+      const kw = kernel[k+radius];
+      s += float[y*w+nx]*kw; wt+=kw;
+    }
+    tmp[y*w+x]=s/wt;
+  }
+  // Vertical pass
+  for (let y=0; y<h; y++) for (let x=0; x<w; x++) {
+    let s=0, wt=0;
+    for (let k=-radius; k<=radius; k++) {
+      const ny=y+k;
+      if(ny<0||ny>=h) continue;
+      const kw=kernel[k+radius];
+      s+=tmp[ny*w+x]*kw; wt+=kw;
+    }
+    mask[y*w+x]=Math.round(s/wt);
+  }
+}
+
+function gaussKernel(r) {
+  const k=[], sigma=r/2;
+  for(let i=-r;i<=r;i++) k.push(Math.exp(-(i*i)/(2*sigma*sigma)));
+  return k;
+}
+
+// ── Sobel edges ────────────────────────────────────────────────
+function sobelEdges(gray, w, h) {
+  const out = new Float32Array(w*h);
+  for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++) {
+    const gx = -gray[(y-1)*w+x-1]+gray[(y-1)*w+x+1]-2*gray[y*w+x-1]+2*gray[y*w+x+1]-gray[(y+1)*w+x-1]+gray[(y+1)*w+x+1];
+    const gy = -gray[(y-1)*w+x-1]-2*gray[(y-1)*w+x]-gray[(y-1)*w+x+1]+gray[(y+1)*w+x-1]+2*gray[(y+1)*w+x]+gray[(y+1)*w+x+1];
+    out[y*w+x]=Math.sqrt(gx*gx+gy*gy);
+  }
+  return out;
+}
+
+function toGrayscale(data, w, h) {
+  const gray = new Float32Array(w*h);
+  for(let i=0;i<w*h;i++) gray[i]=0.299*data[i*4]+0.587*data[i*4+1]+0.114*data[i*4+2];
+  return gray;
+}
+
+// ── Helpers ────────────────────────────────────────────────────
+function sampleEdgeColors(data, w, h, n) {
+  const samples=[];
+  const step = Math.max(1, Math.floor(w/n));
+  for(let x=0;x<w;x+=step) {
+    samples.push(getColor(data,x,0,w));
+    samples.push(getColor(data,x,h-1,w));
+  }
+  const stepH=Math.max(1,Math.floor(h/n));
+  for(let y=0;y<h;y+=stepH) {
+    samples.push(getColor(data,0,y,w));
+    samples.push(getColor(data,w-1,y,w));
+  }
+  return samples;
+}
+
+function getColor(data,x,y,w) {
+  const i=(y*w+x)*4;
+  return [data[i],data[i+1],data[i+2]];
+}
+
+function averageColor(samples) {
+  const s=[0,0,0];
+  samples.forEach(c=>{s[0]+=c[0];s[1]+=c[1];s[2]+=c[2];});
+  return s.map(v=>v/samples.length);
+}
+
+function colorDist(data, idx, color) {
+  const dr=data[idx]-color[0], dg=data[idx+1]-color[1], db=data[idx+2]-color[2];
+  return Math.sqrt(dr*dr+dg*dg+db*db);
+}
+
+// ── Apply mask to image data ───────────────────────────────────
+function applyMask(imgData, mask) {
+  const out = new ImageData(imgData.width, imgData.height);
+  for(let i=0;i<mask.length;i++) {
+    out.data[i*4]   = imgData.data[i*4];
+    out.data[i*4+1] = imgData.data[i*4+1];
+    out.data[i*4+2] = imgData.data[i*4+2];
+    out.data[i*4+3] = mask[i];
+  }
+  return out;
+}
+
+// ── Composite result onto chosen background ────────────────────
+function applyBackground() {
+  if (!resultImageData) return;
+  const ctx = resultCanvas.getContext('2d');
+  const {width:w, height:h} = resultCanvas;
+  ctx.clearRect(0,0,w,h);
+
+  if (outputBg !== 'transparent') {
+    ctx.fillStyle = outputBg;
+    ctx.fillRect(0,0,w,h);
+  }
+  const tmp = document.createElement('canvas');
+  tmp.width=w; tmp.height=h;
+  tmp.getContext('2d').putImageData(resultImageData,0,0);
+  ctx.drawImage(tmp,0,0);
+}
+
+// ─── Progress helpers ─────────────────────────────────────────
+function setProgress(pct, label) {
+  progressFill.style.width = pct + '%';
+  progressPct.textContent = pct + '%';
+  if (label) progressLabel.textContent = label;
+}
+
+// ─── Toast ────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type='') {
+  toastEl.textContent = msg;
+  toastEl.className = 'toast show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.className = 'toast', 2800);
+}
+
+function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
+</script>
 </body>
 </html>
