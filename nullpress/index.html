@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -11,31 +10,32 @@
   <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <style>
     :root {
-      --bg:       #F5F3EF;
-      --white:    #FFFFFF;
-      --card:     #FDFCFB;
-      --border:   #E8E4DE;
-      --border-s: #D5CFC7;
-      --ink:      #1C1917;
-      --ink-2:    #6B6560;
-      --ink-3:    #A8A39D;
+      /* Dark Theme Variables */
+      --bg:       #121212;
+      --white:    #1E1E1E;
+      --card:     #181818;
+      --border:   #333333;
+      --border-s: #4A4A4A;
+      --ink:      #E4E4E4;
+      --ink-2:    #A0A0A0;
+      --ink-3:    #777777;
       --accent:   #E8672A;
-      --accent-s: rgba(232,103,42,.1);
-      --accent-b: rgba(232,103,42,.22);
-      --green:    #2D9B6F;
-      --green-s:  rgba(45,155,111,.1);
-      --green-b:  rgba(45,155,111,.22);
-      --red:      #D94F4F;
-      --red-s:    rgba(217,79,79,.08);
-      --shadow-s: 0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04);
-      --shadow-m: 0 4px 16px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
+      --accent-s: rgba(232,103,42,.15);
+      --accent-b: rgba(232,103,42,.3);
+      --green:    #3EBE88;
+      --green-s:  rgba(62,190,136,.15);
+      --green-b:  rgba(62,190,136,.3);
+      --red:      #E66666;
+      --red-s:    rgba(230,102,102,.15);
+      --shadow-s: 0 1px 3px rgba(0,0,0,.3), 0 1px 2px rgba(0,0,0,.2);
+      --shadow-m: 0 4px 16px rgba(0,0,0,.4), 0 1px 4px rgba(0,0,0,.2);
+      
       --r:        12px;
       --r-s:      8px;
       --f-display: 'Fraunces', serif;
       --f-body:    'DM Sans', sans-serif;
       --f-mono:    'DM Mono', monospace;
     }
-
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -195,7 +195,7 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--r-s);
   overflow: hidden;
-  background: var(--white);
+  background: var(--bg);
 }
 .size-row input {
   flex: 1;
@@ -233,7 +233,7 @@ body {
   padding: 8px 14px;
   border-radius: var(--r-s);
   border: 1px solid var(--border);
-  background: var(--white);
+  background: var(--bg);
   font-size: 12px;
   font-weight: 600;
   font-family: var(--f-mono);
@@ -288,8 +288,8 @@ body {
 .warn-note {
   margin-top: 10px;
   padding: 8px 12px;
-  background: rgba(217,79,79,.06);
-  border: 1px solid rgba(217,79,79,.2);
+  background: rgba(230,102,102,.1);
+  border: 1px solid rgba(230,102,102,.25);
   border-radius: 6px;
   font-size: 12px;
   color: var(--red);
@@ -344,13 +344,13 @@ body {
   cursor: pointer;
   transition: all .15s;
   border: 1px solid var(--border);
-  background: var(--white);
+  background: var(--bg);
   color: var(--ink-2);
 }
-.btn-sm:hover { background: var(--bg); color: var(--ink); }
+.btn-sm:hover { background: var(--border); color: var(--ink); }
 .btn-sm:disabled { opacity: .4; cursor: not-allowed; }
-.btn-sm.danger { color: var(--red); border-color: rgba(217,79,79,.25); }
-.btn-sm.danger:hover { background: var(--red-s); }
+.btn-sm.danger { color: var(--red); border-color: rgba(230,102,102,.25); }
+.btn-sm.danger:hover { background: var(--red-s); border-color: var(--red); }
 
 .q-empty {
   padding: 48px 24px;
@@ -372,8 +372,8 @@ body {
   animation: fadeIn .2s ease;
 }
 .q-item:last-child { border-bottom: none; }
-.q-item:hover { background: #FAFAF8; }
-.q-item.active { background: #FFF8F4; }
+.q-item:hover { background: #252525; }
+.q-item.active { background: #2E221D; }
 @keyframes fadeIn { from { opacity:0; transform: translateY(3px); } to { opacity:1; transform:none; } }
 
 .qi-left { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -526,24 +526,16 @@ body {
   color: var(--ink-3);
   font-family: var(--f-mono);
 }
-
-
   </style>
 </head>
 <body>
-
-<!-- ── Header ── -->
 
 <header class="hdr">
   <div class="logo">file<em>Compress</em></div>
   <div class="hdr-pill" id="offBadge">Local · Private</div>
 </header>
 
-<!-- ── Main ── -->
-
 <div class="main">
-
-  <!-- Drop zone -->
 
   <div class="dropzone" id="dropzone">
     <div class="dz-icon">
@@ -564,11 +556,8 @@ body {
   </div>
   <input type="file" id="fileInput" multiple accept=".jpg,.jpeg,.png,.webp,.pdf" style="display:none">
 
-  <!-- Settings -->
-
   <div class="card">
     <div class="settings">
-      <!-- Target size -->
       <div>
         <div class="field-label">Target Size</div>
         <div class="size-row">
@@ -581,7 +570,6 @@ body {
       </div>
 
 
-  <!-- Format -->
   <div>
     <div class="field-label">Output Format</div>
     <div class="fmt-pills" id="fmtPills">
@@ -592,7 +580,6 @@ body {
     </div>
   </div>
 
-  <!-- Compress -->
   <div>
     <div class="field-label" style="visibility:hidden">Action</div>
     <button class="btn-compress" id="compressBtn" disabled>
@@ -604,7 +591,6 @@ body {
   </div>
 </div>
 
-<!-- PDF options (hidden) -->
 <div class="pdf-opts" id="pdfOptsSec">
   <div class="field-label" style="margin-bottom:10px">PDF Mode</div>
   <div class="mode-tog">
@@ -616,15 +602,10 @@ body {
   </div>
 </div>
 
-
   </div>
-
-  <!-- Queue + Preview (hidden until files added) -->
 
   <div id="workArea" style="display:none; display:flex; flex-direction:column; gap:20px;">
 
-
-<!-- File queue -->
 <div class="card">
   <div class="queue-hdr">
     <div style="display:flex;align-items:center;gap:12px">
@@ -641,7 +622,6 @@ body {
   </div>
 </div>
 
-<!-- Preview -->
 <div class="card" id="previewCard" style="display:none">
   <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
     <span style="font-family:var(--f-display);font-size:16px;font-weight:500;letter-spacing:-.02em">Preview</span>
@@ -675,11 +655,7 @@ body {
   </div>
 </div>
 
-
-  </div><!-- /workArea -->
-</div>
-
-<!-- ── JAVASCRIPT ── -->
+  </div></div>
 
 <script>
 'use strict';
@@ -786,7 +762,7 @@ function addFiles(files) {
     added++;
   }
   if (!added) return;
-  if (!state.activeId) state.activeId = [...state.files.keys()][0];
+  if (!state.activeId) state.activeId = [...state.files.keys()];
   renderQueue();
   updatePreview();
   syncControls();
