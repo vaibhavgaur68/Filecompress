@@ -3,37 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title> File Compressor</title>
+  <title>Squish — File Compressor</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,500;0,700;1,300;1,500&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <style>
     :root {
-      /* Dark Theme Variables */
-      --bg:       #121212;
-      --white:    #1E1E1E;
-      --card:     #181818;
-      --border:   #333333;
-      --border-s: #4A4A4A;
-      --ink:      #E4E4E4;
-      --ink-2:    #A0A0A0;
-      --ink-3:    #777777;
-      --accent:   #E8672A;
-      --accent-s: rgba(232,103,42,.15);
-      --accent-b: rgba(232,103,42,.3);
-      --green:    #3EBE88;
-      --green-s:  rgba(62,190,136,.15);
-      --green-b:  rgba(62,190,136,.3);
-      --red:      #E66666;
-      --red-s:    rgba(230,102,102,.15);
-      --shadow-s: 0 1px 3px rgba(0,0,0,.3), 0 1px 2px rgba(0,0,0,.2);
-      --shadow-m: 0 4px 16px rgba(0,0,0,.4), 0 1px 4px rgba(0,0,0,.2);
+      /* Dark Theme Variables matched to reference */
+      --bg:       #0A0A0B;
+      --white:    #121214;
+      --card:     #121214;
+      --border:   #27272A;
+      --border-s: #3F3F46;
+      --ink:      #FFFFFF;
+      --ink-2:    #A1A1AA;
+      --ink-3:    #71717A;
       
-      --r:        12px;
+      /* Vibrant Lime Accent */
+      --accent:   #CCFF00; 
+      --accent-s: rgba(204, 255, 0, 0.1);
+      --accent-b: rgba(204, 255, 0, 0.3);
+      
+      --green:    #CCFF00;
+      --green-s:  rgba(204, 255, 0, 0.1);
+      --green-b:  rgba(204, 255, 0, 0.3);
+      --red:      #F87171;
+      --red-s:    rgba(248, 113, 113, 0.1);
+      
+      --shadow-s: 0 4px 12px rgba(0,0,0,0.5);
+      
+      --r:        16px;
       --r-s:      8px;
-      --f-display: 'Fraunces', serif;
-      --f-body:    'DM Sans', sans-serif;
+      --f-display: 'Outfit', sans-serif;
+      --f-body:    'Inter', sans-serif;
       --f-mono:    'DM Mono', monospace;
     }
 
@@ -50,10 +53,12 @@ body {
 
 /* ── Header ── */
 .hdr {
-  background: var(--white);
+  background: rgba(10, 10, 11, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
   padding: 0 28px;
-  height: 58px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -64,50 +69,65 @@ body {
 
 .logo {
   font-family: var(--f-display);
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -.03em;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   color: var(--ink);
 }
 .logo em {
   color: var(--accent);
-  font-style: italic;
+  font-style: normal;
 }
 
 .hdr-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--green-s);
-  border: 1px solid var(--green-b);
-  color: var(--green);
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--ink-2);
   border-radius: 99px;
-  padding: 4px 12px;
-  font-size: 12px;
-  font-weight: 500;
+  padding: 4px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
-.hdr-pill::before {
-  content: '';
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--green);
-  animation: pulse 2.5s ease-in-out infinite;
-}
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 
 /* ── Main ── */
 .main {
   max-width: 860px;
   margin: 0 auto;
-  padding: 40px 24px 80px;
+  padding: 60px 24px 80px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
+}
+
+/* ── Typography Section ── */
+.hero-text {
+  text-align: center;
+  margin-bottom: 20px;
+}
+.hero-text h1 {
+  font-family: var(--f-display);
+  font-size: 56px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin-bottom: 12px;
+}
+.hero-text h1 span {
+  color: var(--accent);
+}
+.hero-text p {
+  color: var(--ink-2);
+  font-size: 15px;
 }
 
 /* ── Cards ── */
 .card {
-  background: var(--white);
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--r);
   box-shadow: var(--shadow-s);
@@ -115,13 +135,13 @@ body {
 
 /* ── Drop Zone ── */
 .dropzone {
-  border: 2px dashed var(--border-s);
+  border: 1px dashed var(--border-s);
   border-radius: var(--r);
-  padding: 52px 32px;
+  padding: 64px 32px;
   text-align: center;
   cursor: pointer;
   transition: border-color .2s, background .2s;
-  background: var(--card);
+  background: transparent;
   position: relative;
 }
 .dropzone:hover,
@@ -131,53 +151,31 @@ body {
 }
 
 .dz-icon {
-  width: 56px; height: 56px;
-  border-radius: 50%;
-  background: var(--bg);
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  background: var(--white);
   border: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 16px;
 }
-.dz-icon svg { color: var(--ink-2); }
+.dz-icon svg { color: var(--accent); }
 
 .dz-title {
-  font-family: var(--f-display);
-  font-size: 20px;
+  font-family: var(--f-body);
+  font-size: 16px;
   font-weight: 500;
-  letter-spacing: -.02em;
-  margin-bottom: 5px;
-}
-.dz-sub {
-  color: var(--ink-2);
-  font-size: 13px;
-}
-.dz-fmts {
-  display: flex;
-  gap: 6px;
-  justify-content: center;
-  margin-top: 18px;
-}
-.dz-fmt {
-  padding: 3px 10px;
-  border-radius: 6px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--ink-2);
-  letter-spacing: .04em;
-  font-family: var(--f-mono);
+  color: var(--ink);
 }
 
 /* ── Settings bar ── */
 .settings {
   display: grid;
   grid-template-columns: 200px 1fr auto;
-  gap: 16px;
+  gap: 20px;
   align-items: end;
-  padding: 20px 20px;
+  padding: 24px;
 }
 
 .field-label {
@@ -186,7 +184,7 @@ body {
   letter-spacing: .06em;
   text-transform: uppercase;
   color: var(--ink-3);
-  margin-bottom: 7px;
+  margin-bottom: 8px;
 }
 
 .size-row {
@@ -202,7 +200,7 @@ body {
   border: none;
   padding: 10px 12px;
   font-family: var(--f-mono);
-  font-size: 15px;
+  font-size: 14px;
   color: var(--ink);
   background: transparent;
   outline: none;
@@ -213,7 +211,7 @@ body {
 .size-row select {
   border: none;
   border-left: 1px solid var(--border);
-  padding: 10px 10px;
+  padding: 10px;
   font-family: var(--f-body);
   font-size: 13px;
   font-weight: 500;
@@ -226,36 +224,35 @@ body {
 /* Format pills */
 .fmt-pills {
   display: flex;
-  gap: 5px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 .fmt-pill {
-  padding: 8px 14px;
+  padding: 8px 16px;
   border-radius: var(--r-s);
   border: 1px solid var(--border);
   background: var(--bg);
-  font-size: 12px;
-  font-weight: 600;
-  font-family: var(--f-mono);
+  font-size: 13px;
+  font-weight: 500;
   color: var(--ink-2);
   cursor: pointer;
   transition: all .15s;
-  letter-spacing: .03em;
 }
 .fmt-pill:hover { border-color: var(--border-s); color: var(--ink); }
 .fmt-pill.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+  font-weight: 600;
 }
 
 /* PDF Mode */
 .pdf-opts {
   display: none;
-  padding: 0 20px 18px;
+  padding: 0 24px 20px;
   border-top: 1px solid var(--border);
   margin-top: 4px;
-  padding-top: 16px;
+  padding-top: 20px;
 }
 .pdf-opts.show { display: block; }
 
@@ -264,44 +261,43 @@ body {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--r-s);
-  padding: 3px;
-  gap: 3px;
+  padding: 4px;
+  gap: 4px;
 }
 .mode-btn {
-  padding: 6px 14px;
+  padding: 8px 16px;
   border-radius: 6px;
   border: none;
   background: transparent;
   font-family: var(--f-body);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--ink-2);
   cursor: pointer;
   transition: all .15s;
 }
 .mode-btn.active {
-  background: var(--white);
+  background: var(--border);
   color: var(--ink);
-  box-shadow: var(--shadow-s);
 }
 
 .warn-note {
-  margin-top: 10px;
-  padding: 8px 12px;
-  background: rgba(230,102,102,.1);
-  border: 1px solid rgba(230,102,102,.25);
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: var(--red-s);
+  border: 1px solid rgba(248, 113, 113, 0.2);
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--red);
 }
 
 /* Compress button */
 .btn-compress {
-  padding: 11px 24px;
+  padding: 12px 28px;
   border-radius: var(--r-s);
   background: var(--accent);
   border: none;
-  color: #fff;
+  color: #000;
   font-family: var(--f-body);
   font-size: 14px;
   font-weight: 600;
@@ -310,14 +306,14 @@ body {
   white-space: nowrap;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
 }
-.btn-compress:hover { background: #d45820; }
-.btn-compress:disabled { opacity: .4; cursor: not-allowed; }
+.btn-compress:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-compress:disabled { opacity: .3; cursor: not-allowed; transform: none; }
 
 /* ── Queue ── */
 .queue-hdr {
-  padding: 16px 20px;
+  padding: 16px 24px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -325,9 +321,8 @@ body {
 }
 .queue-ttl {
   font-family: var(--f-display);
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: -.02em;
+  font-size: 18px;
+  font-weight: 600;
 }
 .queue-actions {
   display: flex;
@@ -349,76 +344,76 @@ body {
 }
 .btn-sm:hover { background: var(--border); color: var(--ink); }
 .btn-sm:disabled { opacity: .4; cursor: not-allowed; }
-.btn-sm.danger { color: var(--red); border-color: rgba(230,102,102,.25); }
+.btn-sm.danger { color: var(--red); border-color: rgba(248, 113, 113, 0.2); }
 .btn-sm.danger:hover { background: var(--red-s); border-color: var(--red); }
 
 .q-empty {
   padding: 48px 24px;
   text-align: center;
   color: var(--ink-3);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 /* File row */
 .q-item {
-  padding: 13px 20px;
+  padding: 16px 24px;
   border-bottom: 1px solid var(--border);
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 8px;
+  gap: 12px;
   align-items: center;
   cursor: pointer;
   transition: background .1s;
-  animation: fadeIn .2s ease;
 }
 .q-item:last-child { border-bottom: none; }
-.q-item:hover { background: #252525; }
-.q-item.active { background: #2E221D; }
-@keyframes fadeIn { from { opacity:0; transform: translateY(3px); } to { opacity:1; transform:none; } }
+.q-item:hover { background: #1A1A1D; }
+.q-item.active { background: #1A1A1D; border-left: 2px solid var(--accent); }
 
-.qi-left { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.qi-left { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .qi-name {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .qi-meta {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-3);
   font-family: var(--f-mono);
 }
 
-.qi-right { display: flex; align-items: center; gap: 10px; }
+.qi-right { display: flex; align-items: center; gap: 12px; }
 
 .status-badge {
   font-size: 11px;
   font-weight: 600;
-  padding: 3px 9px;
+  padding: 4px 10px;
   border-radius: 99px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
-.sb-wait { color: var(--ink-3); }
-.sb-proc { color: var(--accent); }
+.sb-wait { color: var(--ink-3); border: 1px solid var(--border); }
+.sb-proc { color: var(--bg); background: var(--accent); }
 .sb-done { background: var(--green-s); color: var(--green); border: 1px solid var(--green-b); }
 .sb-err  { background: var(--red-s);   color: var(--red);   }
 
 .btn-save {
-  padding: 5px 13px;
+  padding: 6px 14px;
   border-radius: 6px;
-  background: var(--green-s);
-  border: 1px solid var(--green-b);
-  color: var(--green);
+  background: var(--ink);
+  border: none;
+  color: var(--bg);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all .15s;
+  transition: opacity .15s;
   font-family: var(--f-body);
 }
-.btn-save:hover { background: var(--green-b); }
+.btn-save:hover { opacity: 0.8; }
 
 .prog-bar {
-  width: 72px; height: 3px;
+  width: 80px; height: 4px;
   background: var(--border);
   border-radius: 99px;
   overflow: hidden;
@@ -434,7 +429,7 @@ body {
 .preview-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  min-height: 280px;
+  min-height: 300px;
 }
 .prev-pane {
   display: flex;
@@ -443,24 +438,23 @@ body {
 .prev-pane:first-child { border-right: 1px solid var(--border); }
 
 .prev-hdr {
-  padding: 10px 16px;
+  padding: 12px 20px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: .05em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 .prev-hdr span:last-child {
   font-family: var(--f-mono);
-  font-size: 12px;
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
-  color: var(--ink-2);
+  color: var(--ink-3);
 }
 
 .prev-body {
@@ -470,59 +464,43 @@ body {
   justify-content: center;
   padding: 24px;
   background: var(--bg);
-  min-height: 240px;
 }
 .prev-body img {
   max-width: 100%;
-  max-height: 260px;
+  max-height: 280px;
   object-fit: contain;
-  border-radius: 6px;
-  box-shadow: var(--shadow-s);
+  border-radius: 8px;
 }
 .prev-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: 13px;
 }
-.prev-empty svg { opacity: .5; }
+.prev-empty svg { opacity: .4; }
 
 .prev-pdf {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: 13px;
 }
 
-/* ── Reduction badge ── */
-.reduction-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border-radius: 99px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-/* ── Responsive ── */
 @media (max-width: 640px) {
   .settings { grid-template-columns: 1fr; }
   .preview-grid { grid-template-columns: 1fr; }
   .prev-pane:first-child { border-right: none; border-bottom: 1px solid var(--border); }
 }
 
-/* Spin */
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin .7s linear infinite; }
 
-/* Queue stat */
 .q-stat {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ink-3);
   font-family: var(--f-mono);
 }
@@ -531,28 +509,26 @@ body {
 <body>
 
 <header class="hdr">
-  <div class="logo">file<em>Compress</em></div>
-  <div class="hdr-pill" id="offBadge">Local · Private</div>
+  <div class="logo">Squ<em>ish</em></div>
+  <div class="hdr-pill" id="offBadge">100% Local · No Upload</div>
 </header>
 
 <div class="main">
 
+  <div class="hero-text">
+    <h1>Compress files <br><span>instantly.</span></h1>
+    <p>Powered entirely by your browser. Your data never leaves your device.</p>
+  </div>
+
   <div class="dropzone" id="dropzone">
     <div class="dz-icon">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-        <polyline points="17 8 12 3 7 8"/>
-        <line x1="12" y1="3" x2="12" y2="15"/>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+        <polyline points="21 15 16 10 5 21"></polyline>
       </svg>
     </div>
-    <div class="dz-title">Drop files to compress</div>
-    <div class="dz-sub">or click to browse · paste from clipboard</div>
-    <div class="dz-fmts">
-      <span class="dz-fmt">JPEG</span>
-      <span class="dz-fmt">PNG</span>
-      <span class="dz-fmt">WebP</span>
-      <span class="dz-fmt">PDF</span>
-    </div>
+    <div class="dz-title">Drop your image or PDF here</div>
   </div>
   <input type="file" id="fileInput" multiple accept=".jpg,.jpeg,.png,.webp,.pdf" style="display:none">
 
@@ -569,7 +545,6 @@ body {
         </div>
       </div>
 
-
   <div>
     <div class="field-label">Output Format</div>
     <div class="fmt-pills" id="fmtPills">
@@ -583,49 +558,46 @@ body {
   <div>
     <div class="field-label" style="visibility:hidden">Action</div>
     <button class="btn-compress" id="compressBtn" disabled>
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-      </svg>
-      <span id="compressBtnTxt">Compress</span>
+      <span id="compressBtnTxt">Compress Now</span>
     </button>
   </div>
 </div>
 
 <div class="pdf-opts" id="pdfOptsSec">
-  <div class="field-label" style="margin-bottom:10px">PDF Mode</div>
+  <div class="field-label" style="margin-bottom:12px">PDF Mode</div>
   <div class="mode-tog">
-    <button class="mode-btn active" id="pdfLight">Structural — keeps text</button>
-    <button class="mode-btn" id="pdfHeavy">Render+Pack — smaller, loses text</button>
+    <button class="mode-btn active" id="pdfLight">Structural (Drops junk objects)</button>
+    <button class="mode-btn" id="pdfHeavy">Render+Pack (Lossy images, destroys text)</button>
   </div>
   <div class="warn-note" id="pdfWarn" style="display:none">
-    Render+Pack rasterises pages — searchable text will be lost.
+    Render+Pack completely rasterizes pages. All searchable text, links, and vector clarity will be destroyed. Use only as a last resort.
   </div>
 </div>
 
   </div>
 
-  <div id="workArea" style="display:none; display:flex; flex-direction:column; gap:20px;">
+  <div id="workArea" style="display:none; display:flex; flex-direction:column; gap:24px;">
 
 <div class="card">
   <div class="queue-hdr">
-    <div style="display:flex;align-items:center;gap:12px">
-      <span class="queue-ttl">Files</span>
+    <div style="display:flex;align-items:center;gap:16px">
+      <span class="queue-ttl">Queue</span>
       <span class="q-stat" id="qStats">0 files</span>
     </div>
     <div class="queue-actions">
-      <button class="btn-sm" id="dlAllBtn" disabled>↓ Download all</button>
-      <button class="btn-sm danger" id="nukeBtn">Clear all</button>
+      <button class="btn-sm" id="dlAllBtn" disabled>Download All</button>
+      <button class="btn-sm danger" id="nukeBtn">Clear</button>
     </div>
   </div>
   <div id="qList">
-    <div class="q-empty" id="qEmpty">No files yet</div>
+    <div class="q-empty" id="qEmpty">No files loaded</div>
   </div>
 </div>
 
 <div class="card" id="previewCard" style="display:none">
-  <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
-    <span style="font-family:var(--f-display);font-size:16px;font-weight:500;letter-spacing:-.02em">Preview</span>
-    <span id="reductionChip" style="font-size:12px;color:var(--ink-3);font-family:var(--f-mono)"></span>
+  <div style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
+    <span style="font-family:var(--f-display);font-size:18px;font-weight:600;">Preview</span>
+    <span id="reductionChip" style="font-size:13px;color:var(--ink-3);font-family:var(--f-mono)"></span>
   </div>
   <div class="preview-grid">
     <div class="prev-pane">
@@ -635,7 +607,6 @@ body {
       </div>
       <div class="prev-body" id="origPrev">
         <div class="prev-empty">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
           No file selected
         </div>
       </div>
@@ -647,7 +618,6 @@ body {
       </div>
       <div class="prev-body" id="compPrev">
         <div class="prev-empty">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
           Awaiting compression
         </div>
       </div>
@@ -788,14 +758,21 @@ function workerCompress(id, entry, tb, fmt, md) {
   });
 }
 
-/* ── PDF: Structural ── */
+/* ── PDF: Structural (Updated to copy pages) ── */
 async function compressPDFLight(file) {
   const buf = await file.arrayBuffer();
-  const doc = await PDFLib.PDFDocument.load(buf, {ignoreEncryption:true});
-  doc.setTitle(''); doc.setAuthor(''); doc.setSubject('');
-  doc.setKeywords([]); doc.setProducer(''); doc.setCreator('');
-  doc.setCreationDate(new Date(0)); doc.setModificationDate(new Date(0));
-  const bytes = await doc.save({useObjectStreams:true, addDefaultPage:false});
+  const srcDoc = await PDFLib.PDFDocument.load(buf, {ignoreEncryption:true});
+  
+  // To truly drop unused objects in pdf-lib, we must create a new document
+  // and selectively copy the pages over. Stripping metadata alone is useless.
+  const newDoc = await PDFLib.PDFDocument.create();
+  newDoc.setTitle(''); newDoc.setAuthor(''); newDoc.setCreator('');
+  
+  const pageIndices = srcDoc.getPageIndices();
+  const copiedPages = await newDoc.copyPages(srcDoc, pageIndices);
+  copiedPages.forEach(page => newDoc.addPage(page));
+
+  const bytes = await newDoc.save({useObjectStreams:true});
   return new Blob([bytes], {type:'application/pdf'});
 }
 
@@ -965,7 +942,7 @@ function qItemHTML(e) {
     </div>
     <div class="qi-right">
       ${statusMap[e.status]||''}
-      ${e.status==='done'&&e.compBlob ? `<button class="btn-save" data-dl="${e.id}">↓ Save</button>` : ''}
+      ${e.status==='done'&&e.compBlob ? `<button class="btn-save" data-dl="${e.id}">Save</button>` : ''}
     </div>
   `;
 }
@@ -1000,7 +977,7 @@ function updatePreview() {
 
   // Original
   if (e.fileType==='pdf') {
-    origEl.innerHTML=pdfPrev(e.name,'#E8672A');
+    origEl.innerHTML=pdfPrev(e.name,'var(--ink-2)');
   } else {
     origEl.innerHTML=`<img src="${e.origURL}" alt="Original">`;
   }
@@ -1008,13 +985,13 @@ function updatePreview() {
   // Compressed
   if (e.status==='processing') {
     compEl.innerHTML=`<div class="prev-empty">
-      <div style="width:28px;height:28px;border:2px solid #E8672A;border-top-color:transparent;border-radius:50%" class="spin"></div>
+      <div style="width:28px;height:28px;border:2px solid var(--accent);border-top-color:transparent;border-radius:50%" class="spin"></div>
       Processing…
     </div>`;
     compSz.textContent='…'; chip.textContent='';
   } else if (e.status==='done'&&e.compBlob) {
     if (e.fileType==='pdf'||e.outFmt==='pdf') {
-      compEl.innerHTML=pdfPrev('Compressed PDF','#2D9B6F');
+      compEl.innerHTML=pdfPrev('Compressed PDF','var(--accent)');
     } else if (e.compURL) {
       compEl.innerHTML=`<img src="${e.compURL}" alt="Compressed">`;
     }
@@ -1024,19 +1001,16 @@ function updatePreview() {
     chip.style.color=pct>=0?'var(--green)':'var(--red)';
   } else if (e.status==='done'&&!e.compBlob) {
     compEl.innerHTML=`<div class="prev-empty" style="color:var(--green)">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
       Downloaded
     </div>`;
     chip.textContent='';
   } else if (e.status==='error') {
     compEl.innerHTML=`<div class="prev-empty" style="color:var(--red)">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       ${e.errMsg||'Compression failed'}
     </div>`;
     compSz.textContent='—'; chip.textContent='';
   } else {
     compEl.innerHTML=`<div class="prev-empty">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
       Awaiting compression
     </div>`;
     compSz.textContent='—'; chip.textContent='';
@@ -1060,7 +1034,7 @@ function syncControls() {
   const btn=document.getElementById('compressBtn');
   document.getElementById('dlAllBtn').disabled=!hasDone;
   btn.disabled=!hasFiles||state.busy;
-  document.getElementById('compressBtnTxt').textContent=state.busy?'Processing…':'Compress';
+  document.getElementById('compressBtnTxt').textContent=state.busy?'Processing…':'Compress Now';
 }
 
 /* ── Format selection ── */
@@ -1112,16 +1086,6 @@ document.addEventListener('paste',e=>{
 document.getElementById('compressBtn').addEventListener('click',compressAll);
 document.getElementById('dlAllBtn').addEventListener('click',downloadAll);
 document.getElementById('nukeBtn').addEventListener('click',nukeAll);
-
-/* ── Offline ── */
-const ob=document.getElementById('offBadge');
-const syncOffline=()=>{
-  if (!navigator.onLine) { ob.textContent='Offline'; ob.style.fontWeight='700'; }
-  else { ob.textContent='Local · Private'; ob.style.fontWeight=''; }
-};
-window.addEventListener('offline',syncOffline);
-window.addEventListener('online',syncOffline);
-syncOffline();
 
 /* ── Init ── */
 syncControls();
