@@ -1,112 +1,319 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CutOut — AI Background Remover</title>
+<title>CutOut — Background Remover</title>
 <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.3/dist/imglyRemoveBackground.umd.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400;500&display=swap');
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  :root {
-    --bg: #0a0a0f; --surface: #12121a; --surface2: #1c1c28; --border: #2a2a3d;
-    --accent: #c8ff00; --accent2: #ff6b35; --text: #f0f0f8; --muted: #6b6b8a; --radius: 16px;
-  }
+:root {
+–bg: #0a0a0f;
+–surface: #12121a;
+–surface2: #1c1c28;
+–border: #2a2a3d;
+–accent: #c8ff00;
+–accent2: #ff6b35;
+–text: #f0f0f8;
+–muted: #6b6b8a;
+–radius: 16px;
+}
 
-  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; overflow-x: hidden; }
+html, body {
+height: 100%;
+background: var(–bg);
+color: var(–text);
+font-family: ‘DM Mono’, monospace;
+overflow-x: hidden;
+}
 
-  body::before {
-    content: ''; position: fixed; inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-    pointer-events: none; z-index: 9999; opacity: 0.35;
-  }
+/* Noise texture overlay */
+body::before {
+content: ‘’;
+position: fixed; inset: 0;
+background-image: url(“data:image/svg+xml,%3Csvg viewBox=‘0 0 200 200’ xmlns=‘http://www.w3.org/2000/svg’%3E%3Cfilter id=‘n’%3E%3CfeTurbulence type=‘fractalNoise’ baseFrequency=‘0.9’ numOctaves=‘4’ stitchTiles=‘stitch’/%3E%3C/filter%3E%3Crect width=‘100%25’ height=‘100%25’ filter=‘url(%23n)’ opacity=‘0.04’/%3E%3C/svg%3E”);
+pointer-events: none; z-index: 9999; opacity: 0.35;
+}
 
-  header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 24px 48px; border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; background: rgba(10,10,15,0.85);
-    backdrop-filter: blur(20px); z-index: 100;
-  }
+header {
+display: flex; align-items: center; justify-content: space-between;
+padding: 24px 48px;
+border-bottom: 1px solid var(–border);
+position: sticky; top: 0;
+background: rgba(10,10,15,0.85);
+backdrop-filter: blur(20px);
+z-index: 100;
+}
 
-  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.5rem; letter-spacing: -0.03em; }
-  .logo span { color: var(--accent); }
-  .badge { font-size: 0.65rem; font-weight: 500; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 20px; letter-spacing: 0.08em; text-transform: uppercase; }
+.logo {
+font-family: ‘Syne’, sans-serif;
+font-weight: 800; font-size: 1.5rem;
+letter-spacing: -0.03em;
+}
+.logo span { color: var(–accent); }
 
-  main { max-width: 1100px; margin: 0 auto; padding: 60px 24px 100px; }
-  .hero { text-align: center; margin-bottom: 64px; }
-  .hero h1 { font-family: 'Syne', sans-serif; font-weight: 800; font-size: clamp(2.5rem, 6vw, 4.5rem); line-height: 1.05; letter-spacing: -0.04em; margin-bottom: 16px; }
-  .hero h1 em { font-style: normal; color: var(--accent); position: relative; }
-  .hero p { color: var(--muted); font-size: 0.95rem; line-height: 1.7; max-width: 420px; margin: 0 auto; }
+.badge {
+font-size: 0.65rem; font-weight: 500;
+background: var(–surface2);
+border: 1px solid var(–border);
+color: var(–muted);
+padding: 4px 10px; border-radius: 20px;
+letter-spacing: 0.08em; text-transform: uppercase;
+}
 
-  .upload-zone {
-    border: 2px dashed var(--border); border-radius: var(--radius); background: var(--surface); padding: 72px 40px; text-align: center; cursor: pointer; transition: all 0.25s ease; position: relative; overflow: hidden; margin-bottom: 32px;
-  }
-  .upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); background: rgba(200,255,0,0.03); transform: translateY(-2px); }
-  .upload-icon { width: 56px; height: 56px; border-radius: 14px; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 1.5rem; }
-  .upload-zone h3 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.1rem; margin-bottom: 8px; }
-  .upload-zone p { color: var(--muted); font-size: 0.8rem; }
-  .upload-zone input { display: none; }
+main {
+max-width: 1100px; margin: 0 auto;
+padding: 60px 24px 100px;
+}
 
-  .controls-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 32px; align-items: center; justify-content: center; }
-  .ctrl-group { display: flex; flex-direction: column; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; min-width: 180px; align-items: center; }
-  .ctrl-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.hero {
+text-align: center; margin-bottom: 64px;
+}
+.hero h1 {
+font-family: ‘Syne’, sans-serif;
+font-weight: 800; font-size: clamp(2.5rem, 6vw, 4.5rem);
+line-height: 1.05; letter-spacing: -0.04em;
+margin-bottom: 16px;
+}
+.hero h1 em {
+font-style: normal; color: var(–accent);
+position: relative;
+}
+.hero p {
+color: var(–muted); font-size: 0.95rem;
+line-height: 1.7; max-width: 420px; margin: 0 auto;
+}
 
-  .color-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .color-swatch { width: 32px; height: 32px; border-radius: 8px; border: 2px solid transparent; cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
-  .color-swatch:hover { transform: scale(1.15); }
-  .color-swatch.active { border-color: var(--accent); }
-  .color-swatch.transparent-sw { background: repeating-conic-gradient(#444 0% 25%, #222 0% 50%) 0 0 / 12px 12px; }
-  input[type="color"] { width: 32px; height: 32px; border-radius: 8px; border: 2px solid var(--border); padding: 2px; background: var(--surface2); cursor: pointer; }
-  input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; border-radius: 6px; }
-  input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
+/* Upload Zone */
+.upload-zone {
+border: 2px dashed var(–border);
+border-radius: var(–radius);
+background: var(–surface);
+padding: 72px 40px;
+text-align: center;
+cursor: pointer;
+transition: all 0.25s ease;
+position: relative; overflow: hidden;
+margin-bottom: 32px;
+}
+.upload-zone::before {
+content: ‘’;
+position: absolute; inset: 0;
+background: radial-gradient(ellipse at 50% 0%, rgba(200,255,0,0.04) 0%, transparent 70%);
+pointer-events: none;
+}
+.upload-zone:hover, .upload-zone.drag-over {
+border-color: var(–accent);
+background: rgba(200,255,0,0.03);
+transform: translateY(-2px);
+}
+.upload-zone.drag-over { border-style: solid; }
 
-  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; border-radius: 10px; font-family: 'DM Mono', monospace; font-size: 0.8rem; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s; text-decoration: none; }
-  .btn-primary { background: var(--accent); color: #0a0a0f; font-weight: 700; }
-  .btn-primary:hover { background: #d4ff1a; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(200,255,0,0.25); }
-  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
-  .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
-  .btn-download { background: var(--accent2); color: #fff; font-weight: 700; }
-  .btn-download:hover { background: #ff7f50; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(255,107,53,0.3); }
+.upload-icon {
+width: 56px; height: 56px;
+border-radius: 14px;
+background: var(–surface2);
+border: 1px solid var(–border);
+display: flex; align-items: center; justify-content: center;
+margin: 0 auto 20px;
+font-size: 1.5rem;
+}
+.upload-zone h3 {
+font-family: ‘Syne’, sans-serif; font-weight: 700;
+font-size: 1.1rem; margin-bottom: 8px;
+}
+.upload-zone p { color: var(–muted); font-size: 0.8rem; }
+.upload-zone input { display: none; }
 
-  .action-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 40px; justify-content: center;}
+/* Controls */
+.controls-row {
+display: flex; gap: 12px; flex-wrap: wrap;
+margin-bottom: 32px; align-items: center;
+}
 
-  .progress-wrap { display: none; margin-bottom: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; }
-  .progress-wrap.visible { display: block; }
-  .progress-top { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); margin-bottom: 10px; }
-  .progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
-  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; transition: width 0.3s ease; }
+.ctrl-group {
+display: flex; flex-direction: column; gap: 8px;
+background: var(–surface);
+border: 1px solid var(–border);
+border-radius: var(–radius);
+padding: 16px 20px;
+flex: 1; min-width: 180px;
+}
+.ctrl-label {
+font-size: 0.65rem; text-transform: uppercase;
+letter-spacing: 0.1em; color: var(–muted);
+}
 
-  .canvas-area { display: none; gap: 24px; }
-  .canvas-area.visible { display: grid; grid-template-columns: 1fr 1fr; }
-  @media (max-width: 700px) { .canvas-area.visible { grid-template-columns: 1fr; } }
+.color-row {
+display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+}
+.color-swatch {
+width: 32px; height: 32px; border-radius: 8px;
+border: 2px solid transparent;
+cursor: pointer; transition: all 0.15s;
+flex-shrink: 0;
+}
+.color-swatch:hover { transform: scale(1.15); }
+.color-swatch.active { border-color: var(–accent); }
+.color-swatch.transparent-sw {
+background: repeating-conic-gradient(#444 0% 25%, #222 0% 50%) 0 0 / 12px 12px;
+}
 
-  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-  .panel-header { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
-  .panel-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-  .panel-body { padding: 20px; display: flex; align-items: center; justify-content: center; min-height: 260px; background: repeating-conic-gradient(#1a1a24 0% 25%, #141420 0% 50%) 0 0 / 20px 20px; }
-  .panel-body canvas { max-width: 100%; max-height: 400px; border-radius: 8px; display: block; }
+input[type=“color”] {
+width: 32px; height: 32px; border-radius: 8px;
+border: 2px solid var(–border);
+padding: 2px; background: var(–surface2);
+cursor: pointer;
+}
+input[type=“color”]::-webkit-color-swatch-wrapper { padding: 0; border-radius: 6px; }
+input[type=“color”]::-webkit-color-swatch { border: none; border-radius: 6px; }
 
-  .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 24px; font-size: 0.8rem; color: var(--text); transition: transform 0.3s ease; z-index: 1000; white-space: nowrap; }
-  .toast.show { transform: translateX(-50%) translateY(0); }
-  .toast.success { border-color: var(--accent); color: var(--accent); }
-  .toast.error { border-color: var(--accent2); color: var(--accent2); }
+/* Buttons */
+.btn {
+display: inline-flex; align-items: center; gap: 8px;
+padding: 12px 24px; border-radius: 10px;
+font-family: ‘DM Mono’, monospace; font-size: 0.8rem;
+font-weight: 500; cursor: pointer; border: none;
+transition: all 0.2s; letter-spacing: 0.02em;
+text-decoration: none;
+}
+.btn-primary {
+background: var(–accent); color: #0a0a0f;
+font-weight: 700;
+}
+.btn-primary:hover { background: #d4ff1a; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(200,255,0,0.25); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.btn-ghost {
+background: var(–surface2); color: var(–text);
+border: 1px solid var(–border);
+}
+.btn-ghost:hover { border-color: var(–accent); color: var(–accent); }
+.btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-download {
+background: var(–accent2); color: #fff; font-weight: 700;
+}
+.btn-download:hover { background: #ff7f50; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(255,107,53,0.3); }
+
+.action-row {
+display: flex; gap: 12px; flex-wrap: wrap;
+margin-bottom: 40px;
+}
+
+/* Progress */
+.progress-wrap {
+display: none; margin-bottom: 24px;
+background: var(–surface); border: 1px solid var(–border);
+border-radius: var(–radius); padding: 20px 24px;
+}
+.progress-wrap.visible { display: block; }
+.progress-top {
+display: flex; justify-content: space-between;
+font-size: 0.75rem; color: var(–muted); margin-bottom: 10px;
+}
+.progress-bar {
+height: 4px; background: var(–border); border-radius: 2px; overflow: hidden;
+}
+.progress-fill {
+height: 100%; background: var(–accent);
+border-radius: 2px; width: 0%;
+transition: width 0.3s ease;
+}
+
+/* Canvas area */
+.canvas-area {
+display: none; gap: 24px;
+}
+.canvas-area.visible { display: grid; grid-template-columns: 1fr 1fr; }
+
+@media (max-width: 700px) {
+.canvas-area.visible { grid-template-columns: 1fr; }
+header { padding: 16px 20px; }
+main { padding: 40px 16px 80px; }
+}
+
+.panel {
+background: var(–surface); border: 1px solid var(–border);
+border-radius: var(–radius); overflow: hidden;
+}
+.panel-header {
+padding: 14px 20px;
+border-bottom: 1px solid var(–border);
+font-size: 0.7rem; text-transform: uppercase;
+letter-spacing: 0.1em; color: var(–muted);
+display: flex; justify-content: space-between; align-items: center;
+}
+.panel-dot {
+width: 8px; height: 8px; border-radius: 50%;
+background: var(–accent);
+}
+.panel-body {
+padding: 20px;
+display: flex; align-items: center; justify-content: center;
+min-height: 260px;
+background: repeating-conic-gradient(#1a1a24 0% 25%, #141420 0% 50%) 0 0 / 20px 20px;
+}
+.panel-body canvas {
+max-width: 100%; max-height: 400px;
+border-radius: 8px;
+display: block;
+}
+
+/* Toast */
+.toast {
+position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(80px);
+background: var(–surface2); border: 1px solid var(–border);
+border-radius: 12px; padding: 12px 24px;
+font-size: 0.8rem; color: var(–text);
+transition: transform 0.3s ease; z-index: 1000;
+white-space: nowrap;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.success { border-color: var(–accent); color: var(–accent); }
+.toast.error { border-color: var(–accent2); color: var(–accent2); }
+
+/* Hidden canvas */
+#workCanvas { display: none; }
+
+.step-hint {
+display: flex; align-items: center; gap: 8px;
+font-size: 0.7rem; color: var(–muted);
+margin-top: 4px;
+}
+.step-hint span { color: var(–accent); }
+
+/* AI badge on ctrl-group */
+.ai-tag {
+display: inline-flex; align-items: center; gap: 5px;
+font-size: 0.62rem; color: var(–accent);
+background: rgba(200,255,0,0.07);
+border: 1px solid rgba(200,255,0,0.2);
+border-radius: 6px; padding: 3px 8px;
+letter-spacing: 0.06em; text-transform: uppercase;
+width: fit-content;
+}
 </style>
+
 </head>
 <body>
 
 <header>
   <div class="logo">Cut<span>Out</span></div>
-  <div class="badge">AI Powered · 100% Local · Free</div>
+  <div class="badge">AI-Powered · 100% Local · Free</div>
 </header>
 
 <main>
   <div class="hero">
-    <h1>Remove backgrounds<br><em>perfectly.</em></h1>
-    <p>Powered by Neural Networks entirely in your browser. Your images never leave your device.</p>
+    <h1>Remove backgrounds<br><em>instantly.</em></h1>
+    <p>Powered by on-device AI. Your images never leave your browser.</p>
   </div>
+
+  <!-- Upload Zone -->
 
   <div class="upload-zone" id="uploadZone">
     <div class="upload-icon">🖼</div>
@@ -115,8 +322,10 @@
     <input type="file" id="fileInput" accept="image/*">
   </div>
 
+  <!-- Controls -->
+
   <div class="controls-row" id="controlsRow" style="display:none">
-    <div class="ctrl-group">
+    <div class="ctrl-group" style="min-width:240px">
       <div class="ctrl-label">Output Background</div>
       <div class="color-row">
         <div class="color-swatch transparent-sw active" data-color="transparent" title="Transparent"></div>
@@ -128,106 +337,142 @@
         <input type="color" id="customColor" title="Custom color" value="#a855f7">
       </div>
     </div>
+
+
+<div class="ctrl-group" style="min-width:200px; justify-content: center;">
+  <div class="ctrl-label">Removal Engine</div>
+  <div class="ai-tag">✦ isnet-general-use</div>
+  <div class="step-hint">Neural network — runs fully in your browser</div>
+</div>
+
+
   </div>
 
+  <!-- Action buttons -->
+
   <div class="action-row" id="actionRow" style="display:none">
-    <button class="btn btn-primary" id="processBtn">⚡ Run Neural Network</button>
+    <button class="btn btn-primary" id="processBtn">⚡ Remove Background</button>
     <button class="btn btn-ghost" id="resetBtn">↺ Reset</button>
     <button class="btn btn-download" id="downloadBtn" disabled>↓ Download PNG</button>
   </div>
 
+  <!-- Progress -->
+
   <div class="progress-wrap" id="progressWrap">
     <div class="progress-top">
-      <span id="progressLabel">Initializing AI…</span>
+      <span id="progressLabel">Processing…</span>
       <span id="progressPct">0%</span>
     </div>
     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
   </div>
 
+  <!-- Canvas panels -->
+
   <div class="canvas-area" id="canvasArea">
     <div class="panel">
-      <div class="panel-header"><span>Original</span><div class="panel-dot" style="background:var(--muted)"></div></div>
-      <div class="panel-body"><canvas id="originalCanvas"></canvas></div>
+      <div class="panel-header">
+        <span>Original</span>
+        <div class="panel-dot" style="background:var(--muted)"></div>
+      </div>
+      <div class="panel-body">
+        <canvas id="originalCanvas"></canvas>
+      </div>
     </div>
     <div class="panel">
-      <div class="panel-header"><span>AI Result</span><div class="panel-dot"></div></div>
-      <div class="panel-body"><canvas id="resultCanvas"></canvas></div>
+      <div class="panel-header">
+        <span>Result</span>
+        <div class="panel-dot"></div>
+      </div>
+      <div class="panel-body">
+        <canvas id="resultCanvas"></canvas>
+      </div>
     </div>
   </div>
+
 </main>
+
+<!-- Hidden work canvas -->
+
+<canvas id="workCanvas"></canvas>
 
 <div class="toast" id="toast"></div>
 
 <script>
-let currentFile = null;
-let resultImageData = null;
-let outputBg = 'transparent';
+// ─── State ────────────────────────────────────────────────────
+let resultImageData = null;   // ImageData of the AI cutout (alpha-masked)
+let outputBg        = 'transparent';
+let currentFile     = null;   // Raw File object for imgly
 
-const uploadZone = document.getElementById('uploadZone');
-const fileInput = document.getElementById('fileInput');
-const controlsRow = document.getElementById('controlsRow');
-const actionRow = document.getElementById('actionRow');
-const canvasArea = document.getElementById('canvasArea');
+// ─── DOM refs ─────────────────────────────────────────────────
+const uploadZone   = document.getElementById('uploadZone');
+const fileInput    = document.getElementById('fileInput');
+const controlsRow  = document.getElementById('controlsRow');
+const actionRow    = document.getElementById('actionRow');
+const canvasArea   = document.getElementById('canvasArea');
 const progressWrap = document.getElementById('progressWrap');
 const progressFill = document.getElementById('progressFill');
-const progressLabel = document.getElementById('progressLabel');
-const progressPct = document.getElementById('progressPct');
-const processBtn = document.getElementById('processBtn');
-const resetBtn = document.getElementById('resetBtn');
-const downloadBtn = document.getElementById('downloadBtn');
-const origCanvas = document.getElementById('originalCanvas');
+const progressLabel= document.getElementById('progressLabel');
+const progressPct  = document.getElementById('progressPct');
+const processBtn   = document.getElementById('processBtn');
+const resetBtn     = document.getElementById('resetBtn');
+const downloadBtn  = document.getElementById('downloadBtn');
+const origCanvas   = document.getElementById('originalCanvas');
 const resultCanvas = document.getElementById('resultCanvas');
-const swatches = document.querySelectorAll('.color-swatch');
-const customColor = document.getElementById('customColor');
-const toastEl = document.getElementById('toast');
+const workCanvas   = document.getElementById('workCanvas');
+const swatches     = document.querySelectorAll('.color-swatch');
+const customColor  = document.getElementById('customColor');
+const toastEl      = document.getElementById('toast');
 
-// Upload Handlers
+// ─── Upload handling ──────────────────────────────────────────
 uploadZone.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', e => {
-  currentFile = e.target.files;
-  if (currentFile) loadOriginalImage(currentFile);
-});
+fileInput.addEventListener('change', e => e.target.files[0] && loadImage(e.target.files[0]));
 
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
 uploadZone.addEventListener('drop', e => {
   e.preventDefault(); uploadZone.classList.remove('drag-over');
-  currentFile = e.dataTransfer.files;
-  if (currentFile && currentFile.type.startsWith('image/')) loadOriginalImage(currentFile);
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadImage(f);
+  else showToast('Please drop an image file', 'error');
 });
 
-function loadOriginalImage(file) {
-  if (file.size > 20 * 1024 * 1024) { showToast('Image too large', 'error'); return; }
+function loadImage(file) {
+  if (file.size > 20 * 1024 * 1024) { showToast('Image too large (max 20 MB)', 'error'); return; }
+
+  currentFile = file; // store raw File for imgly
+
   const reader = new FileReader();
   reader.onload = ev => {
     const img = new Image();
     img.onload = () => {
-      // Draw original
+      // Draw preview onto original canvas
       const maxW = 900, maxH = 700;
       let w = img.width, h = img.height;
       if (w > maxW || h > maxH) {
         const scale = Math.min(maxW / w, maxH / h);
         w = Math.round(w * scale); h = Math.round(h * scale);
       }
-      origCanvas.width = w; origCanvas.height = h;
+      origCanvas.width  = w; origCanvas.height = h;
       origCanvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      
-      // Setup Result Canvas
+
       resultCanvas.width = w; resultCanvas.height = h;
       resultCanvas.getContext('2d').clearRect(0, 0, w, h);
 
-      controlsRow.style.display = 'flex';
-      actionRow.style.display = 'flex';
-      canvasArea.classList.add('visible');
+      resultImageData = null;
       downloadBtn.disabled = true;
-      showToast('Image loaded. Ready for AI extraction.', 'success');
+
+      controlsRow.style.display = 'flex';
+      actionRow.style.display   = 'flex';
+      canvasArea.classList.add('visible');
+
+      showToast('Image loaded — click "Remove Background"', 'success');
     };
     img.src = ev.target.result;
   };
   reader.readAsDataURL(file);
 }
 
-// Background Swatches
+// ─── Color swatches ───────────────────────────────────────────
 swatches.forEach(sw => {
   sw.addEventListener('click', () => {
     swatches.forEach(s => s.classList.remove('active'));
@@ -241,106 +486,131 @@ customColor.addEventListener('input', () => {
   outputBg = customColor.value;
   if (resultImageData) applyBackground();
 });
-
-// 2. THE AI PROCESSING LOGIC
-processBtn.addEventListener('click', async () => {
-  if (!currentFile) return;
-  processBtn.disabled = true;
-  downloadBtn.disabled = true;
-  progressWrap.classList.add('visible');
-  
-  try {
-    // Config to wire the AI loading state to your progress bar
-    const config = {
-      progress: (key, current, total) => {
-        const pct = Math.round((current / total) * 100);
-        setProgress(pct, `AI Task: ${key}...`);
-      }
-    };
-
-    setProgress(0, 'Initializing Neural Network...');
-    
-    // THE MAGIC LINE: Call the @imgly API
-    const blob = await imglyRemoveBackground(currentFile, config);
-
-    setProgress(95, 'Compositing image...');
-    
-    // Draw the perfect transparent result to the canvas
-    const url = URL.createObjectURL(blob);
-    const resImg = new Image();
-    resImg.onload = () => {
-      resultCanvas.width = resImg.width;
-      resultCanvas.height = resImg.height;
-      const ctx = resultCanvas.getContext('2d');
-      ctx.drawImage(resImg, 0, 0);
-      
-      // Save data for background color swapping
-      resultImageData = ctx.getImageData(0, 0, resImg.width, resImg.height);
-      applyBackground();
-      
-      setProgress(100, 'Perfect extraction complete!');
-      downloadBtn.disabled = false;
-      showToast('Background removed!', 'success');
-      setTimeout(() => progressWrap.classList.remove('visible'), 1500);
-      processBtn.disabled = false;
-    };
-    resImg.src = url;
-
-  } catch(error) {
-    showToast('AI Processing failed: ' + error.message, 'error');
-    console.error(error);
-    processBtn.disabled = false;
-    progressWrap.classList.remove('visible');
-  }
+customColor.addEventListener('click', () => {
+  swatches.forEach(s => s.classList.remove('active'));
+  outputBg = customColor.value;
 });
 
+// ─── Process — AI background removal ─────────────────────────
+processBtn.addEventListener('click', async () => {
+  if (!currentFile) return;
+
+  processBtn.disabled  = true;
+  downloadBtn.disabled = true;
+  progressWrap.classList.add('visible');
+  setProgress(0, 'Initialising AI model…');
+
+  // Map imgly's named progress keys to friendly labels
+  const labelMap = {
+    'fetch:static'       : 'Downloading model weights…',
+    'fetch:dynamic'      : 'Downloading model…',
+    'compute:inference'  : 'Running AI inference…',
+    'compute:postprocess': 'Refining edges…',
+  };
+
+  try {
+    const config = {
+      progress: (key, current, total) => {
+        const pct   = total > 0 ? Math.round((current / total) * 100) : 0;
+        const label = labelMap[key] || key;
+        setProgress(pct, `${label} ${pct}%`);
+      },
+    };
+
+    // imglyRemoveBackground is injected from the UMD bundle as a global.
+    // It accepts a File/Blob/URL and returns a Promise<Blob> (PNG with transparency).
+    const resultBlob = await imglyRemoveBackground(currentFile, config);
+
+    setProgress(95, 'Compositing result…');
+
+    // Convert the output Blob → ImageData so the swatch logic keeps working
+    const blobUrl = URL.createObjectURL(resultBlob);
+    const aiImg   = new Image();
+
+    await new Promise((resolve, reject) => {
+      aiImg.onload = resolve;
+      aiImg.onerror = reject;
+      aiImg.src = blobUrl;
+    });
+
+    // Stamp the AI result into a same-size offscreen canvas and grab its ImageData
+    const offscreen = document.createElement('canvas');
+    offscreen.width  = resultCanvas.width;
+    offscreen.height = resultCanvas.height;
+    const offCtx = offscreen.getContext('2d');
+    offCtx.clearRect(0, 0, offscreen.width, offscreen.height);
+    offCtx.drawImage(aiImg, 0, 0, offscreen.width, offscreen.height);
+    resultImageData = offCtx.getImageData(0, 0, offscreen.width, offscreen.height);
+
+    URL.revokeObjectURL(blobUrl);
+
+    applyBackground();
+
+    setProgress(100, 'Done!');
+    downloadBtn.disabled = false;
+    showToast('Background removed!', 'success');
+
+  } catch (err) {
+    showToast('AI processing failed: ' + err.message, 'error');
+    console.error(err);
+  }
+
+  setTimeout(() => progressWrap.classList.remove('visible'), 1400);
+  processBtn.disabled = false;
+});
+
+// ─── Reset ────────────────────────────────────────────────────
+resetBtn.addEventListener('click', () => {
+  resultCanvas.getContext('2d').clearRect(0, 0, resultCanvas.width, resultCanvas.height);
+  resultImageData  = null;
+  downloadBtn.disabled = true;
+  showToast('Reset — adjust settings and try again');
+});
+
+// ─── Download ─────────────────────────────────────────────────
+downloadBtn.addEventListener('click', () => {
+  const link = document.createElement('a');
+  link.download = 'cutout-' + Date.now() + '.png';
+  link.href = resultCanvas.toDataURL('image/png');
+  link.click();
+  showToast('Downloaded!', 'success');
+});
+
+// ─── Composite result onto chosen background ──────────────────
 function applyBackground() {
   if (!resultImageData) return;
   const ctx = resultCanvas.getContext('2d');
-  const w = resultCanvas.width, h = resultCanvas.height;
+  const { width: w, height: h } = resultCanvas;
   ctx.clearRect(0, 0, w, h);
 
   if (outputBg !== 'transparent') {
     ctx.fillStyle = outputBg;
     ctx.fillRect(0, 0, w, h);
   }
-  
-  // Draw the AI cutout over the new background
+
+  // Stamp the alpha-masked ImageData via a temp canvas
   const tmp = document.createElement('canvas');
   tmp.width = w; tmp.height = h;
   tmp.getContext('2d').putImageData(resultImageData, 0, 0);
   ctx.drawImage(tmp, 0, 0);
 }
 
-// Resets and Utilities
-resetBtn.addEventListener('click', () => {
-  resultCanvas.getContext('2d').clearRect(0, 0, resultCanvas.width, resultCanvas.height);
-  resultImageData = null;
-  downloadBtn.disabled = true;
-  showToast('Reset ready');
-});
-
-downloadBtn.addEventListener('click', () => {
-  const link = document.createElement('a');
-  link.download = 'cutout-ai-' + Date.now() + '.png';
-  link.href = resultCanvas.toDataURL('image/png');
-  link.click();
-  showToast('Downloaded!', 'success');
-});
-
+// ─── Progress helpers ─────────────────────────────────────────
 function setProgress(pct, label) {
-  progressFill.style.width = pct + '%';
-  progressPct.textContent = pct + '%';
+  progressFill.style.width  = pct + '%';
+  progressPct.textContent   = pct + '%';
   if (label) progressLabel.textContent = label;
 }
 
+// ─── Toast ────────────────────────────────────────────────────
 let toastTimer;
-function showToast(msg, type='') {
-  toastEl.textContent = msg;
-  toastEl.className = 'toast show ' + type;
+function showToast(msg, type = '') {
+  toastEl.textContent  = msg;
+  toastEl.className    = 'toast show ' + type;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toastEl.className = 'toast', 2800);
 }
 </script>
+
 </body>
 </html>
