@@ -1,0 +1,108 @@
+/* themes.css - Centralized Theme Engine for FocusOS */
+
+:root {
+    --bg-color: #f4f5f7; --panel-bg: #ffffff; --text-main: #2c3e50; --text-muted: #8395a7; --border-color: #e5e9f2;
+    --primary: #6ba4ed; --danger: #ff6b81; --success: #10b981; --gold: #f59e0b;
+    --glass-bg: rgba(255, 255, 255, 0.6); --glass-border: rgba(255, 255, 255, 0.4);
+    --console-bg: #ffffff;
+    
+    /* Variables specifically for index/sidebar */
+    --sidebar-bg: #111827; --sidebar-text: #9ca3af; --sidebar-hover: #1f2937; --accent: #6ba4ed; --active-text: #ffffff; --shop-btn: #8a65e8;
+    
+    /* Tracker specific */
+    --week1-light: #b3d4ff; --week1-dark: #6ba4ed; --week5-dark: #6e7aed;
+    --profile-bg: #ffe6ea; --profile-accent: #ff6b81; --nav-bg: rgba(255, 255, 255, 0.95);
+    
+    color-scheme: light;
+}
+
+[data-theme="dark"] {
+    --bg-color: #000000; --panel-bg: #1c1c1e; --text-main: #f5f5f7; --text-muted: #8e8e93; --border-color: #2c2c2e;
+    --primary: #0a84ff; --danger: #ff375f;
+    --glass-bg: rgba(0, 0, 0, 0.4); --glass-border: rgba(255, 255, 255, 0.1); --console-bg: #151516;
+    
+    --sidebar-bg: #000000; --sidebar-hover: #1a1a1a; --accent: #3b82f6; --shop-btn: #6366f1;
+    --week1-light: #1a2a40; --week1-dark: #0a84ff; --week5-dark: #5e5ce6;
+    --profile-bg: #2d1b2e; --profile-accent: #ff375f; --nav-bg: rgba(28, 28, 30, 0.95);
+    
+    color-scheme: dark;
+}
+
+[data-theme="matcha"] {
+    --bg-color: #f0f4ef; --panel-bg: #ffffff; --text-main: #2b4028; --text-muted: #6b8068; --border-color: #e2ebd0;
+    --primary: #8cae6a; --danger: #e07a5f;
+    --glass-bg: rgba(255, 255, 255, 0.6); --glass-border: rgba(255, 255, 255, 0.4); --console-bg: #ffffff;
+    
+    --sidebar-bg: #1a2517; --sidebar-hover: #2b4028; --accent: #8cae6a; --shop-btn: #658c42;
+    --week1-light: #d8e8ca; --week1-dark: #8cae6a; --week5-dark: #7da555;
+    --profile-bg: #e2ebd0; --profile-accent: #5a7d3b; --nav-bg: rgba(255, 255, 255, 0.95);
+    
+    color-scheme: light;
+}
+
+[data-theme="midnight"] {
+    --bg-color: #070b14; --panel-bg: #111827; --text-main: #e2e8f0; --text-muted: #64748b; --border-color: #334155;
+    --primary: #0ea5e9; --danger: #f43f5e;
+    --glass-bg: rgba(0, 0, 0, 0.4); --glass-border: rgba(255, 255, 255, 0.1); --console-bg: #0a0f1a;
+    
+    --sidebar-bg: #070b14; --sidebar-hover: #0f172a; --accent: #0ea5e9; --shop-btn: #0ea5e9;
+    color-scheme: dark;
+}
+
+[data-theme="autumn"] {
+    --bg-color: #f5efe6; --panel-bg: #ffffff; --text-main: #432818; --text-muted: #a67c52; --border-color: #d4b8a3;
+    --primary: #d97706; --danger: #dc2626;
+    --glass-bg: rgba(255, 255, 255, 0.6); --glass-border: rgba(255, 255, 255, 0.4); --console-bg: #ffffff;
+    
+    --sidebar-bg: #2e1c11; --sidebar-hover: #432818; --accent: #d97706; --shop-btn: #d97706;
+    color-scheme: light;
+}
+/* --- NEW PREMIUM THEMES --- */
+
+[data-theme="cyberpunk"] {
+    --bg-color: #0d0221; --panel-bg: #1a0b2e; --text-main: #00ffcc; --text-muted: #b829ea; --border-color: #3d1c5d;
+    --primary: #00ffcc; --danger: #ff007f; --gold: #f3e600;
+    --glass-bg: rgba(26, 11, 46, 0.7); --glass-border: rgba(0, 255, 204, 0.3); --console-bg: #05010f;
+    
+    --sidebar-bg: #05010f; --sidebar-text: #b829ea; --sidebar-hover: #1a0b2e; --accent: #00ffcc; --active-text: #fff; --shop-btn: #ff007f;
+    --week1-light: #1a0b2e; --week1-dark: #b829ea; --week5-dark: #ff007f;
+    --profile-bg: #1a0b2e; --profile-accent: #00ffcc; --nav-bg: rgba(13, 2, 33, 0.95);
+    
+    color-scheme: dark;
+}
+
+[data-theme="sakura"] {
+    --bg-color: #fff0f5; --panel-bg: #ffffff; --text-main: #5d4037; --text-muted: #a1887f; --border-color: #f8bbd0;
+    --primary: #ec407a; --danger: #e53935; --gold: #ffb300;
+    --glass-bg: rgba(255, 255, 255, 0.6); --glass-border: rgba(248, 187, 208, 0.5); --console-bg: #fff0f5;
+    
+    --sidebar-bg: #fce4ec; --sidebar-text: #8d6e63; --sidebar-hover: #f8bbd0; --accent: #ec407a; --active-text: #4e342e; --shop-btn: #ec407a;
+    --week1-light: #f8bbd0; --week1-dark: #ec407a; --week5-dark: #d81b60;
+    --profile-bg: #fce4ec; --profile-accent: #ec407a; --nav-bg: rgba(255, 240, 245, 0.95);
+    
+    color-scheme: light;
+}
+
+[data-theme="ocean"] {
+    --bg-color: #001220; --panel-bg: #001f3f; --text-main: #e0f7fa; --text-muted: #80deea; --border-color: #004d40;
+    --primary: #00bcd4; --danger: #ff5252; --gold: #ffca28;
+    --glass-bg: rgba(0, 31, 63, 0.6); --glass-border: rgba(0, 188, 212, 0.3); --console-bg: #000c14;
+    
+    --sidebar-bg: #000c14; --sidebar-text: #80deea; --sidebar-hover: #001f3f; --accent: #00bcd4; --active-text: #fff; --shop-btn: #0288d1;
+    --week1-light: #003366; --week1-dark: #00838f; --week5-dark: #00bcd4;
+    --profile-bg: #001f3f; --profile-accent: #00bcd4; --nav-bg: rgba(0, 18, 32, 0.95);
+    
+    color-scheme: dark;
+}
+
+[data-theme="coffee"] {
+    --bg-color: #f3e5d8; --panel-bg: #faf3eb; --text-main: #3e2723; --text-muted: #795548; --border-color: #d7ccc8;
+    --primary: #5d4037; --danger: #d84315; --gold: #f59e0b;
+    --glass-bg: rgba(250, 243, 235, 0.7); --glass-border: rgba(121, 85, 72, 0.2); --console-bg: #efebe9;
+    
+    --sidebar-bg: #3e2723; --sidebar-text: #bcaaa4; --sidebar-hover: #4e342e; --accent: #d7ccc8; --active-text: #efebe9; --shop-btn: #8d6e63;
+    --week1-light: #d7ccc8; --week1-dark: #8d6e63; --week5-dark: #5d4037;
+    --profile-bg: #4e342e; --profile-accent: #d7ccc8; --nav-bg: rgba(243, 229, 216, 0.95);
+    
+    color-scheme: light;
+}

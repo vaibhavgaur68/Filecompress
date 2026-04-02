@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="default">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FocusOS | Login</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* Base Neobrutalist Theme Variables based on your references */
+        :root {
+            --bg-color: #2C045E;
+            --panel-bg: #AE7CE1/*  */; /* Vibrant pink from reference */
+            --text-main: #000000;
+            --text-muted: #333333;
+            --primary: #FFEE4B/*  */; /* Vibrant yellow */
+            --input-bg: #ffffff;
+            --border-color: #000000;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            background-color: var(--bg-color); 
+            color: var(--text-main); 
+            min-height: 100vh; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 20px; 
+        }
+
+        .login-card {
+            background: var(--panel-bg);
+            border: 4px solid var(--border-color);
+            border-radius: 16px;
+            padding: 40px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 12px 12px 0px var(--border-color);
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn { 
+            from { transform: scale(0.95) translateY(10px); opacity: 0; } 
+            to { transform: scale(1) translateY(0); opacity: 1; } 
+        }
+
+        .login-logo { font-size: 2.2rem; font-weight: 900; letter-spacing: -1px; text-transform: uppercase; margin-bottom: 5px; color: var(--text-main); }
+        .login-tagline { font-size: 0.85rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 35px; }
+
+        .form-label { display: block; font-size: 0.8rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: var(--text-main); margin-bottom: 8px; }
+        
+        .form-input {
+            width: 100%; padding: 14px 16px;
+            background: var(--input-bg); color: var(--text-main);
+            border: 3px solid var(--border-color); border-radius: 8px;
+            font-size: 1rem; font-weight: 700; outline: none;
+            box-shadow: 4px 4px 0px var(--border-color);
+            transition: box-shadow 0.2s, transform 0.2s;
+            margin-bottom: 20px;
+        }
+        
+        .form-input:focus { 
+            box-shadow: 6px 6px 0px var(--border-color); 
+            transform: translate(-2px, -2px);
+        }
+
+        /* Password Wrapper for the Eye Toggle */
+        .password-wrapper {
+            position: relative;
+            width: 100%;
+        }
+        
+        .password-wrapper .form-input {
+            padding-right: 50px; /* Make room for the button */
+        }
+
+        .toggle-password-btn {
+            position: absolute;
+            right: 12px;
+            top: 24px; /* Centered relative to input height */
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .toggle-password-btn:hover { opacity: 1; }
+        .toggle-password-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+
+        .submit-btn {
+            width: 100%; padding: 16px;
+            background: var(--primary); color: var(--text-main);
+            border: 3px solid var(--border-color); border-radius: 8px;
+            font-size: 1.1rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;
+            cursor: pointer; box-shadow: 6px 6px 0px var(--border-color);
+            transition: all 0.1s; margin-top: 10px;
+        }
+        .submit-btn:active { transform: translate(6px, 6px); box-shadow: 0px 0px 0px transparent; }
+        .submit-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; box-shadow: 6px 6px 0px var(--border-color); }
+
+        .divider { display: flex; align-items: center; gap: 15px; margin: 25px 0; }
+        .divider::before, .divider::after { content: ''; flex: 1; height: 3px; background: var(--border-color); }
+        .divider span { font-size: 0.8rem; font-weight: 900; color: var(--text-main); text-transform: uppercase; letter-spacing: 1px; }
+
+        .toggle-btn {
+            width: 100%; padding: 14px;
+            background: #ffffff; color: var(--text-main);
+            border: 3px solid var(--border-color); border-radius: 8px;
+            font-size: 0.95rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;
+            cursor: pointer; transition: all 0.1s;
+            box-shadow: 4px 4px 0px var(--border-color);
+        }
+        .toggle-btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0px var(--border-color); }
+        .toggle-btn:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px transparent; }
+
+        .status-msg {
+            margin-top: 20px; padding: 12px 16px; border-radius: 8px;
+            font-size: 0.9rem; font-weight: 800; text-align: center;
+            display: none; border: 3px solid var(--border-color);
+            box-shadow: 4px 4px 0px var(--border-color);
+            background: #ffffff;
+        }
+        .status-msg.error { background: #ff4d4d; color: #fff; display: block; }
+        .status-msg.success { background: #10b981; color: #fff; display: block; }
+        .status-msg.info { background: #6ba4ed; color: #fff; display: block; }
+
+        .mode-title { font-size: 1.3rem; font-weight: 900; text-transform: uppercase; letter-spacing: -0.5px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 4px solid var(--border-color); }
+    </style>
+</head>
+<body>
+
+<div class="login-card">
+    <div class="login-logo">FocusOS</div>
+    <div class="login-tagline">Regulate Your Focus. </div>
+
+    <div class="mode-title" id="modeTitle">Sign In</div>
+
+    <div id="loginForm">
+        <label class="form-label">Email</label>
+        <input type="email" id="emailInput" class="form-input" placeholder="agent@focusos.io" autocomplete="email">
+
+        <label class="form-label">Password</label>
+        <div class="password-wrapper">
+            <input type="password" id="passwordInput" class="form-input" placeholder="••••••••" autocomplete="current-password" onkeypress="if(event.key==='Enter') handleSubmit()">
+            <button type="button" class="toggle-password-btn" onclick="togglePassword()" tabindex="-1">
+                <svg id="eyeIcon" viewBox="0 0 24 24">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+            </button>
+        </div>
+
+        <button class="submit-btn" id="submitBtn" onclick="handleSubmit()">Enter the Matrix</button>
+        
+        <div class="divider"><span>or</span></div>
+        
+        <button class="toggle-btn" id="toggleBtn" onclick="toggleMode()">Create New Account</button>
+    </div>
+
+    <div class="status-msg" id="statusMsg"></div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://xyhswdekhebcdmiyxfbo.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_UsVbr-Rs8gDF-H9OdXKQEQ_qpv0Pf2m';
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let isSignUp = false;
+
+    // Check existing session
+    supabaseClient.auth.getSession().then(({ data: { session } }) => {
+        if (session) window.location.href = 'index.html';
+    }).catch(() => {});
+
+    function toggleMode() {
+        isSignUp = !isSignUp;
+        document.getElementById('modeTitle').innerText = isSignUp ? 'Create Account' : 'Sign In';
+        document.getElementById('submitBtn').innerText = isSignUp ? 'Deploy Identity' : 'enter the matrix';
+        document.getElementById('toggleBtn').innerText = isSignUp ? 'Already have an account? Sign In' : 'Create New Account';
+        clearStatus();
+    }
+
+    // Toggle Password Visibility Logic
+    function togglePassword() {
+        const passInput = document.getElementById('passwordInput');
+        const eyeIcon = document.getElementById('eyeIcon');
+        
+        if (passInput.type === 'password') {
+            passInput.type = 'text';
+            // Eye slash SVG path
+            eyeIcon.innerHTML = `
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+            `;
+        } else {
+            passInput.type = 'password';
+            // Open eye SVG path
+            eyeIcon.innerHTML = `
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+            `;
+        }
+    }
+
+    function showStatus(msg, type) {
+        const el = document.getElementById('statusMsg');
+        el.innerText = msg;
+        el.className = 'status-msg ' + type;
+    }
+
+    function clearStatus() {
+        const el = document.getElementById('statusMsg');
+        el.className = 'status-msg';
+        el.innerText = '';
+    }
+
+    async function handleSubmit() {
+        const email = document.getElementById('emailInput').value.trim();
+        const password = document.getElementById('passwordInput').value;
+
+        if (!email || !password) { showStatus('Email and password are required.', 'error'); return; }
+        if (password.length < 6) { showStatus('Password must be at least 6 characters.', 'error'); return; }
+
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.innerText = 'Processing...';
+        clearStatus();
+
+        try {
+            if (isSignUp) {
+                const { data, error } = await supabaseClient.auth.signUp({ email, password });
+                if (error) throw error;
+                if (data.user && !data.session) {
+                    showStatus('Check your email to confirm your account, then sign in.', 'info');
+                } else if (data.user) {
+                    await ensureProfile(data.user);
+                    window.location.href = 'index.html';
+                }
+            } else {
+                const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+                window.location.href = 'index.html';
+            }
+        } catch (err) {
+            const msg = err.message || 'Authentication failed.';
+            showStatus(msg.includes('Invalid') ? 'Invalid email or password.' : msg, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerText = isSignUp ? 'Deploy Identity' : 'Enter the Matrix';
+        }
+    }
+
+    async function ensureProfile(user) {
+        const { data: existing } = await supabaseClient
+            .from('user_profile').select('id').eq('id', user.id).single();
+        if (!existing) {
+            await supabaseClient.from('user_profile').insert([{
+                id: user.id, xp: 0, coins: 100,
+                current_theme: 'default', current_audio: 'standard',
+                inventory: ['default', 'dark', 'standard'],
+                system_config: { cl_chapter: 5.0, cl_lecture: 2.5, cl_mcq: 0.15, cl_custom: 2.0, max_safe_cl: 20.0 }
+            }]);
+        }
+    }
+</script>
+
+</body>
+</html>

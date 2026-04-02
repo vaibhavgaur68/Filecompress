@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="default">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>FocusOS | Strategy Board</title>
+    <link rel="stylesheet" href="themes.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+    // Synchronous theme pre-loader to stop the iframe flash
+    try {
+        const userId = localStorage.getItem('fos_last_user_id');
+        if (userId) {
+            const rawProfile = localStorage.getItem('fos_idx_profile_' + userId);
+            if (rawProfile) {
+                const profile = JSON.parse(rawProfile).data;
+                if (profile && profile.current_theme) {
+                    document.documentElement.setAttribute('data-theme', profile.current_theme);
+                }
+            }
+        }
+    } catch(e) {}
+</script>
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+        html { height: 100%; overflow: hidden; }
+        body { background-color: var(--bg-color); color: var(--text-main); padding: 30px; transition: background-color 0.3s; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .header { margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
+    .header h1 { font-size: 2.2rem; font-weight: 900; letter-spacing: -1px; }
+    .header p { color: var(--text-muted); font-weight: 600; font-size: 0.9rem; margin-top: 5px; }
+    .sync-status { font-size: 0.8rem; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+    .offline-banner { display: none; background: #FFE873; color: #111827; border: 3px solid #111827; border-radius: 12px; padding: 10px 18px; margin-bottom: 20px; font-weight: 900; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; box-shadow: 4px 4px 0px #111827; }
+    .offline-banner.visible { display: block; }
+    .board-area { width: 100%; }
+        .fab {
+        position: fixed;
+        bottom: max(36px, env(safe-area-inset-bottom, 36px));
+        right: 28px; 
+        width: 64px; height: 64px;
+        background: var(--primary);
+        border: 3px solid var(--text-main);
+        border-radius: 50%;
+        box-shadow: 5px 5px 0px var(--text-main);
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; z-index: 200;
+        transition: transform 0.15s, box-shadow 0.15s;
+        color: white;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+    .fab:active { transform: translate(5px, 5px); box-shadow: 0px 0px 0px var(--text-main); }
+    .fab svg { width: 30px; height: 30px; stroke: white; stroke-width: 3; transition: transform 0.3s ease-out; flex-shrink: 0; pointer-events: none; }
+    .fab.is-open svg { transform: rotate(45deg); }
+    @keyframes fabPulse {
+        0%   { box-shadow: 5px 5px 0px var(--text-main), 0 0 0 0 rgba(var(--primary-rgb, 99,102,241), 0.35); }
+        70%  { box-shadow: 5px 5px 0px var(--text-main), 0 0 0 14px rgba(var(--primary-rgb, 99,102,241), 0); }
+        100% { box-shadow: 5px 5px 0px var(--text-main), 0 0 0 0 rgba(var(--primary-rgb, 99,102,241), 0); }
+    }
+    .fab:not(.is-open) { animation: fabPulse 2.8s ease-out 1.5s 3; }
+    .form-drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 150; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+    .form-drawer-overlay.is-open { opacity: 1; pointer-events: all; }
+    .form-drawer { position: fixed; top: 0; left: 50%; transform: translateX(-50%) translateY(-110%); width: min(520px, calc(100vw - 32px)); max-height: 90vh; overflow-y: auto; -webkit-overflow-scrolling: touch; z-index: 160; transition: transform 0.3s ease-out; }
+    .form-drawer.is-open { transform: translateX(-50%) translateY(20px); }
+    @media (max-width: 600px) {
+        .form-drawer { top: auto; bottom: 0; left: 0; right: 0; width: 100%; max-height: 92vh; border-radius: 20px 20px 0 0; left: 0 !important; transform: translateY(110%) !important; }
+        .form-drawer.is-open { transform: translateY(0) !important; }
+        .form-panel::before { content: ''; display: block; width: 44px; height: 5px; background: var(--text-main); opacity: 0.25; border-radius: 3px; margin: 0 auto 18px; }
+    }
+    .form-panel { background: var(--panel-bg); border: 3px solid var(--text-main); border-radius: 16px; padding: 25px; padding-bottom: max(25px, calc(env(safe-area-inset-bottom) + 20px)); box-shadow: 6px 6px 0px var(--text-main); }
+    @media (max-width: 600px) { .form-panel { border-radius: 20px 20px 0 0; border-bottom: none; box-shadow: none; border-top: 3px solid var(--text-main); border-left: 3px solid var(--text-main); border-right: 3px solid var(--text-main); } }
+    .form-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+    .form-panel-title { font-size: 1rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; }
+    .form-close-btn { width: 40px; height: 40px; background: var(--bg-color); border: 2px solid var(--text-main); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 2px 2px 0px var(--text-main); transition: all 0.15s; color: var(--text-main); flex-shrink: 0; touch-action: manipulation; }
+    .form-close-btn:active { transform: translate(2px,2px); box-shadow: 0px 0px 0px var(--text-main); }
+    .form-group { margin-bottom: 14px; width: 100%; display: block; }
+    .form-label { display: block; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; color: var(--text-main); opacity: 0.85; }
+    .neo-input { width: 100%; padding: 10px 12px; background: var(--bg-color); border: 2px solid var(--text-main); border-radius: 8px; font-size: max(16px, 0.95rem); font-weight: 700; color: var(--text-main); outline: none; transition: box-shadow 0.2s, border-color 0.2s; box-sizing: border-box; display: block; }
+    .neo-input:focus { box-shadow: 3px 3px 0px var(--primary); }
+    .input-error { border-color: #FF4747 !important; box-shadow: 3px 3px 0px #FF4747 !important; }
+    @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
+    .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+    textarea.neo-input { resize: none; min-height: 54px; font-weight: 600; }
+    input[type="date"].neo-input { -webkit-appearance: none; appearance: none; min-height: 40px; }
+    input[type="number"].neo-input { -moz-appearance: textfield; }
+    input[type="number"].neo-input::-webkit-inner-spin-button, input[type="number"].neo-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .row-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; }
+    .row-inputs-compact { display: grid; grid-template-columns: auto 1fr; gap: 15px; width: 100%; align-items: end; }
+    .unit-toggle { display: flex; gap: 8px; width: 100%; }
+    .unit-btn { flex: 1; padding: 8px 0; background: var(--bg-color); border: 2px solid var(--text-main); border-radius: 8px; font-weight: 800; font-size: 0.75rem; cursor: pointer; transition: all 0.1s; color: var(--text-main); box-shadow: 2px 2px 0px var(--text-main); touch-action: manipulation; }
+    .unit-btn.active { background: var(--text-main); color: var(--bg-color); transform: translate(3px, 3px); box-shadow: 0px 0px 0px var(--text-main); }
+    .star-rating { display: flex; gap: 6px; cursor: pointer; }
+    .star { width: 28px; height: 28px; fill: transparent; stroke: var(--text-main); stroke-width: 2.5; transition: all 0.2s; touch-action: manipulation; }
+    .star.active { fill: var(--text-main); stroke: var(--text-main); }
+    .star:hover { transform: scale(1.1); }
+    .lock-toggle-btn { background: var(--bg-color); border: 2px solid var(--text-main); color: var(--text-main); padding: 6px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 900; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: all 0.2s; box-shadow: 2px 2px 0px var(--text-main); touch-action: manipulation; min-height: 36px; }
+    .lock-toggle-btn.locked { background: #FF4747; color: white; border-color: #111827; box-shadow: 2px 2px 0px #111827; }
+    .lock-toggle-btn:active { transform: translate(2px, 2px); box-shadow: 0px 0px 0px transparent !important; }
+    .submit-btn { width: 100%; padding: 18px; background: var(--primary); color: white; border: 3px solid var(--text-main); border-radius: 12px; font-weight: 900; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; box-shadow: 4px 4px 0px var(--text-main); transition: all 0.1s; margin-top: 10px; touch-action: manipulation; min-height: 56px; }
+    .submit-btn:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px var(--text-main); }
+    .view-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+    .view-toggle { display: flex; background: var(--panel-bg); border: 3px solid var(--text-main); border-radius: 12px; overflow: hidden; box-shadow: 4px 4px 0px var(--text-main); }
+    .view-btn { padding: 12px 20px; background: transparent; border: none; font-weight: 900; text-transform: uppercase; font-size: 0.85rem; color: var(--text-main); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; outline: none; touch-action: manipulation; min-height: 48px; }
+    .view-btn.active { background: var(--text-main); color: var(--bg-color); }
+    .view-btn svg { width: 18px; height: 18px; stroke-width: 2.5; flex-shrink: 0; }
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; }
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); font-weight: 800; font-size: 1.1rem; text-transform: uppercase; border: 3px dashed var(--border-color); border-radius: 16px; grid-column: 1 / -1; }
+    .card-scene { perspective: 1000px; user-select: none; min-height: 240px; cursor: pointer; }
+    .card-flipper { position: relative; width: 100%; height: 100%; transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform-style: preserve-3d; }
+    .card-scene.is-flipped .card-flipper { transform: rotateY(180deg); }
+    .card-face { -webkit-backface-visibility: hidden; backface-visibility: hidden; border: 3px solid var(--text-main); border-radius: 16px; padding: 20px; color: #111827; transition: transform 0.2s, box-shadow 0.2s; }
+    .card-face-front { position: relative; z-index: 2; box-shadow: 6px 6px 0px var(--text-main); display: flex; flex-direction: column; height: 100%; }
+    .card-scene:not(.is-flipped):hover .card-face-front { transform: translate(-2px, -2px); box-shadow: 8px 8px 0px var(--text-main); }
+    .card-face-back { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: rotateY(180deg); box-shadow: -6px 6px 0px var(--text-main); display: flex; flex-direction: column; justify-content: center; }
+    .card-scene.is-flipped:hover .card-face-back { transform: rotateY(180deg) translate(2px, -2px); box-shadow: -8px 8px 0px var(--text-main); }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .card-pill { background: #ffffff; border: 2px solid #111827; border-radius: 50px; padding: 4px 12px; font-size: 0.75rem; font-weight: 900; text-transform: uppercase; box-shadow: 2px 2px 0px #111827; }
+    .card-stars { display: flex; gap: 2px; }
+    .card-stars svg { width: 16px; height: 16px; color: #111827; fill: #111827; }
+    .card-title { font-size: 1.6rem; font-weight: 900; line-height: 1.1; margin-bottom: 8px; letter-spacing: -0.5px; }
+    .card-desc { font-size: 0.9rem; font-weight: 600; line-height: 1.4; opacity: 0.85; margin-bottom: 25px; flex: 1; }
+    .card-footer { display: flex; flex-direction: column; gap: 12px; margin-top: auto; }
+    .card-stats { display: flex; justify-content: space-between; align-items: flex-end; }
+    .stat-block { display: flex; flex-direction: column; }
+    .stat-val { font-size: 1.2rem; font-weight: 900; line-height: 1; }
+    .stat-lbl { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; opacity: 0.7; letter-spacing: 1px; margin-top: 2px; }
+    .neo-progress-bg { width: 100%; height: 10px; background: #ffffff; border: 2px solid #111827; border-radius: 10px; overflow: hidden; }
+    .neo-progress-fill { height: 100%; background: #111827; transition: width 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .delete-btn { position: absolute; top: -10px; right: -10px; width: 36px; height: 36px; background: #FF4747; border: 2px solid #111827; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 2px 2px 0px #111827; color: white; opacity: 1; transition: all 0.2s; z-index: 10; touch-action: manipulation; }
+    .delete-btn:active { transform: translate(2px, 2px); box-shadow: 0px 0px 0px #111827; }
+    .edit-btn { position: absolute; top: -10px; right: 38px; width: 36px; height: 36px; background: var(--primary); border: 2px solid #111827; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 2px 2px 0px #111827; color: #111827; opacity: 1; transition: all 0.2s; z-index: 10; touch-action: manipulation; }
+    .edit-btn:active { transform: translate(2px, 2px); box-shadow: 0px 0px 0px #111827; }
+    .back-title { font-weight: 900; font-size: 1.5rem; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; text-align: center;}
+    .back-divider { width: 100%; border-top: 2px dashed #111827; margin-bottom: 15px; opacity: 0.5; }
+    .back-row { font-size: 0.85rem; font-weight: 800; display: flex; justify-content: space-between; margin-bottom: 10px;}
+    .back-row span:first-child { opacity: 0.6; text-transform: uppercase; }
+    .back-hint { margin-top: auto; font-size: 0.7rem; font-weight: 800; opacity: 0.6; letter-spacing: 1px; text-align: center; }
+    .tap-hint { display: none; }
+    @media (hover: none) and (pointer: coarse) { .tap-hint { display: inline; } .click-hint { display: none; } }
+    .confirm-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); z-index: 300; display: none; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
+    .confirm-modal-overlay.active { display: flex; opacity: 1; }
+    .confirm-modal { background: var(--panel-bg); border: 3px solid var(--text-main); border-radius: 16px; padding: 25px; width: 90%; max-width: 400px; box-shadow: 8px 8px 0px var(--text-main); transform: scale(0.9); transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .confirm-modal-overlay.active .confirm-modal { transform: scale(1); }
+    .confirm-title { font-size: 1.2rem; font-weight: 900; text-transform: uppercase; margin-bottom: 10px; color: var(--text-main); }
+    .confirm-desc { font-size: 0.9rem; font-weight: 600; color: var(--text-muted); margin-bottom: 25px; line-height: 1.4; }
+    .confirm-actions { display: flex; gap: 12px; }
+    .confirm-btn { flex: 1; padding: 12px; font-weight: 900; text-transform: uppercase; border-radius: 8px; cursor: pointer; border: 2px solid var(--text-main); transition: all 0.1s; font-size: 0.85rem; }
+    .btn-cancel { background: var(--bg-color); color: var(--text-main); box-shadow: 2px 2px 0px var(--text-main); }
+    .btn-cancel:active { transform: translate(2px,2px); box-shadow: 0px 0px 0px transparent; }
+    .btn-purge { background: #FF4747; color: white; box-shadow: 2px 2px 0px var(--text-main); }
+    .btn-purge:active { transform: translate(2px,2px); box-shadow: 0px 0px 0px transparent; }
+    @media (max-width: 480px) {
+        body { padding: 16px 14px; padding-bottom: 110px; }
+        .header { flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 20px; }
+        .header h1 { font-size: 1.9rem; }
+        .row-inputs { grid-template-columns: 1fr; gap: 0; }
+        .row-inputs .form-group:first-child { margin-bottom: 20px; }
+        .row-inputs-compact { grid-template-columns: 1fr; gap: 0; }
+        .row-inputs-compact .form-group:first-child { margin-bottom: 20px !important; }
+        .view-controls { flex-direction: column; align-items: stretch; gap: 12px; }
+        .view-toggle { width: 100%; display: flex; }
+        .view-btn { flex: 1; justify-content: center; font-size: 0.8rem; }
+        .card-face { padding: 16px; }
+        .card-title { font-size: 1.35rem; }
+        .card-scene { min-height: 210px; }
+        .back-title { font-size: 1.2rem; }
+        .back-row { font-size: 0.8rem; }
+        .cards-grid { grid-template-columns: 1fr; gap: 18px; }
+        .fab { bottom: max(24px, env(safe-area-inset-bottom, 24px)); right: 20px; width: 60px; height: 60px; }
+    }
+    @media (min-width: 481px) and (max-width: 768px) { body { padding: 20px; padding-bottom: 100px; } .header h1 { font-size: 2rem; } .cards-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; } }
+    @media (max-width: 768px) { html { background-color: var(--bg-color) !important; height: 100% !important; min-height: 100% !important; overflow: hidden !important; } body { padding-bottom: max(100px, calc(env(safe-area-inset-bottom) + 90px)) !important; height: 100% !important; overflow-y: auto !important; } }
+    @media (max-height: 500px) and (orientation: landscape) { .form-drawer { max-height: 95vh; } .form-panel { padding: 16px; } .form-panel-header { margin-bottom: 14px; } .form-group { margin-bottom: 12px; } }
+    </style>
+</head>
+<body>
+
+<div class="confirm-modal-overlay" id="confirmModalOverlay" onclick="cancelPurge(event)">
+    <div class="confirm-modal" onclick="event.stopPropagation()">
+        <div class="confirm-title">Terminate Operation?</div>
+        <div class="confirm-desc" id="confirmDesc">All progress and flashcards attached to this mission will be permanently wiped from the Matrix.</div>
+        <div class="confirm-actions">
+            <button class="confirm-btn btn-cancel" onclick="cancelPurge()">Abort</button>
+            <button class="confirm-btn btn-purge" onclick="confirmPurge()">Execute Purge</button>
+        </div>
+    </div>
+</div>
+
+<div class="form-drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+
+<div class="form-drawer" id="formDrawer">
+    <div class="form-panel" id="mainFormPanel">
+        <div class="form-panel-header">
+            <span class="form-panel-title" id="drawerTitle">New Mission</span>
+            <button class="form-close-btn" onclick="closeDrawer()" title="Close" aria-label="Close form">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Mission Directive</label>
+            <input type="text" id="f_subject" class="neo-input" placeholder="e.g. Organic Chemistry" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Mission Details</label>
+            <textarea id="f_desc" class="neo-input" placeholder="e.g. Master nomenclature, reaction mechanisms..." maxlength="80"></textarea>
+        </div>
+        <div class="row-inputs">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Total Load</label>
+                <input type="number" id="f_work" class="neo-input" placeholder="0" min="1" inputmode="numeric">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Unit Type</label>
+                <div class="unit-toggle">
+                    <button class="unit-btn active" onclick="setUnit('Ch.')">Ch.</button>
+                    <button class="unit-btn" onclick="setUnit('Lec.')">Lec.</button>
+                    <button class="unit-btn" onclick="setUnit('MCQs')">MCQs</button>
+                </div>
+            </div>
+        </div>
+        <div class="row-inputs-compact" style="margin-top: 14px;">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Priority</label>
+                <div class="star-rating" id="f_stars" style="padding-bottom: 10px;">
+                    <svg class="star active" data-val="1" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                    <svg class="star active" data-val="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                    <svg class="star active" data-val="3" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                    <svg class="star" data-val="4" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                    <svg class="star" data-val="5" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <label class="form-label" style="margin-bottom: 0;">Deadline</label>
+                    <button type="button" id="btnLockToggle" class="lock-toggle-btn" style="min-height: 24px; padding: 2px 8px; font-size: 0.6rem;" onclick="toggleLockState()">
+                        <svg id="iconUnlock" viewBox="0 0 24 24" width="10" height="10" stroke="currentColor" stroke-width="3" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
+                        <svg id="iconLock" viewBox="0 0 24 24" width="10" height="10" stroke="currentColor" stroke-width="3" fill="none" style="display:none;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        <span id="lockText">Elastic</span>
+                    </button>
+                </div>
+                <input type="date" id="f_deadline" class="neo-input">
+            </div>
+        </div>
+        <button class="submit-btn" id="submitBtn" style="margin-top: 18px;" onclick="deployTask()">Deploy Matrix</button>
+    </div>
+</div>
+
+<button class="fab" id="fabBtn" onclick="toggleDrawer()" title="Add New Mission" aria-label="Add new mission">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>
+
+<div class="header">
+    <div>
+        <h1>Strategy Board</h1>
+        <p>Architect your matrix execution.</p>
+    </div>
+    <div class="sync-status" id="syncStatus">
+        <svg class="icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg> Syncing
+    </div>
+</div>
+
+<div class="offline-banner" id="offlineBanner">⚡ Offline Mode — Viewing cached data. Changes will sync when online.</div>
+
+<div class="board-area">
+    <div class="view-controls">
+        <div style="font-weight: 800; text-transform: uppercase; color: var(--text-muted); font-size: 0.8rem; letter-spacing: 1px;">
+            <span id="viewTitleText">Active Deployments</span>
+            <span style="opacity: 0.6; font-size: 0.7rem; margin-left: 8px;">
+                <span class="click-hint">(Dbl-Click for Intel)</span>
+                <span class="tap-hint">(Tap for Intel)</span>
+            </span>
+        </div>
+        <div class="view-toggle">
+            <button class="view-btn active" id="btnViewActive" onclick="switchView('active')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg> Active
+            </button>
+            <button class="view-btn" id="btnViewArchive" onclick="switchView('archive')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg> Archive
+            </button>
+        </div>
+    </div>
+    <div class="cards-grid" id="taskList"></div>
+</div>
+
+<script>
+    // ══════════════════════════════════════════════════════════════════════
+    // OFFLINE QUEUE & LOCAL CACHE
+    // ══════════════════════════════════════════════════════════════════════
+    const OfflineQueue = {
+        DB_NAME: 'focusos_queue', STORE: 'pending_ops', _db: null,
+        async open() {
+            if (this._db) return this._db;
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(this.DB_NAME, 1);
+                req.onupgradeneeded = e => e.target.result.createObjectStore(this.STORE, { autoIncrement: true });
+                req.onsuccess = e => { this._db = e.target.result; resolve(this._db); };
+                req.onerror = () => reject(req.error);
+            });
+        },
+        async push(op) {
+            const db = await this.open();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(this.STORE, 'readwrite');
+                tx.objectStore(this.STORE).add({ ...op, _queuedAt: Date.now() });
+                tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
+            });
+        },
+        async getAllWithKeys() {
+            const db = await this.open();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(this.STORE, 'readonly');
+                const results = [];
+                const cursor = tx.objectStore(this.STORE).openCursor();
+                cursor.onsuccess = e => { const c = e.target.result; if (c) { results.push({ key: c.key, value: c.value }); c.continue(); } else resolve(results); };
+                cursor.onerror = () => reject();
+            });
+        },
+        async deleteKey(key) {
+            const db = await this.open();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(this.STORE, 'readwrite');
+                tx.objectStore(this.STORE).delete(key);
+                tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
+            });
+        }
+    };
+
+    const LocalCache = {
+        TTL: 24 * 60 * 60 * 1000,
+        set(key, data) { try { localStorage.setItem('fos_' + key, JSON.stringify({ ts: Date.now(), data })); } catch(e) {} },
+        get(key) {
+            try {
+                const raw = localStorage.getItem('fos_' + key); if (!raw) return null;
+                const p = JSON.parse(raw);
+                if (Date.now() - p.ts > this.TTL) { localStorage.removeItem('fos_' + key); return null; }
+                return p.data;
+            } catch(e) { return null; }
+        }
+    };
+
+    async function executeDbOp(op) {
+        const sb = supabaseClient;
+        if (op.type === 'insert') return await sb.from(op.table).insert([op.data]);
+        if (op.type === 'update') { let q = sb.from(op.table).update(op.data); for (const [k,v] of Object.entries(op.match)) q=q.eq(k,v); return await q; }
+        if (op.type === 'delete') { let q = sb.from(op.table).delete(); for (const [k,v] of Object.entries(op.match)) q=q.eq(k,v); return await q; }
+    }
+
+    async function safeDbWrite(operation) {
+        if (!navigator.onLine) { await OfflineQueue.push(operation); return { queued: true }; }
+        try { return await executeDbOp(operation); }
+        catch(e) { await OfflineQueue.push(operation); return { queued: true }; }
+    }
+
+    async function flushOfflineQueue() {
+        if (!navigator.onLine) return;
+        let items; try { items = await OfflineQueue.getAllWithKeys(); } catch(e) { return; }
+        if (!items || items.length === 0) return;
+        let flushed = 0;
+        for (const item of items) {
+            try { await executeDbOp(item.value); await OfflineQueue.deleteKey(item.key); flushed++; }
+            catch(e) { console.warn('[FocusOS] Queue flush failed:', e); }
+        }
+        if (flushed > 0) document.getElementById('syncStatus').innerHTML = `✅ Matrix Live`;
+    }
+
+    window.addEventListener('online', () => {
+        document.getElementById('offlineBanner').classList.remove('visible');
+        document.getElementById('syncStatus').innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg> Syncing`;
+        flushOfflineQueue().then(loadTasks);
+    });
+    window.addEventListener('offline', () => {
+        document.getElementById('offlineBanner').classList.add('visible');
+        document.getElementById('syncStatus').innerHTML = `⚡ Offline`;
+    });
+
+    // ══════════════════════════════════════════════════════════════════════
+    // MAIN APP
+    // ══════════════════════════════════════════════════════════════════════
+    const SUPABASE_URL = 'https://xyhswdekhebcdmiyxfbo.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_UsVbr-Rs8gDF-H9OdXKQEQ_qpv0Pf2m';
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    let PROFILE_ID = null;
+    let selectedUnit = 'Ch.';
+    let selectedPriority = 3;
+    let editingTaskId = null;
+    let activeTasksData = [];
+    let currentViewMode = 'active';
+    let isDeadlineLocked = false;
+    let drawerOpen = false;
+    let taskToDelete = null;
+
+    const SUBJECT_COLORS = ['#6ba4ed', '#ff6b81', '#10b981', '#f59e0b', '#8a65e8', '#0ea5e9', '#ec407a', '#f43f5e', '#8b5cf6', '#14b8a6'];
+
+    function heavyTap() { if (navigator.vibrate) navigator.vibrate(40); }
+    function lightTap() { if (navigator.vibrate) navigator.vibrate(15); }
+
+    function setupEventListeners() {
+        document.querySelectorAll('.star').forEach(s => {
+            s.addEventListener('click', (e) => {
+                lightTap();
+                selectedPriority = parseInt(e.currentTarget.getAttribute('data-val'));
+                document.querySelectorAll('.star').forEach(st => st.classList.toggle('active', parseInt(st.getAttribute('data-val')) <= selectedPriority));
+            });
+        });
+        document.querySelectorAll('.neo-input').forEach(input => {
+            input.addEventListener('focus', function() { setTimeout(() => this.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300); });
+            input.addEventListener('input', function() { this.classList.remove('input-error'); });
+        });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && drawerOpen) closeDrawer(); });
+        window.addEventListener('message', async (event) => {
+            if (event.data === 'sync_bank') {
+                if (!navigator.onLine) return;
+                const { data } = await supabaseClient.from('user_profile').select('current_theme').eq('id', PROFILE_ID).single();
+                if (data) document.documentElement.setAttribute('data-theme', data.current_theme);
+            }
+        });
+    }
+
+    async function init() {
+        const isAuth = await checkAuth();
+        if (!isAuth) return;
+
+        if (!navigator.onLine) {
+            document.getElementById('offlineBanner').classList.add('visible');
+            document.getElementById('syncStatus').innerHTML = `⚡ Offline`;
+        }
+
+        // Load from cache immediately
+        const cachedProfile = LocalCache.get('profile_' + PROFILE_ID);
+        const cachedTasks = LocalCache.get('tasks');
+        if (cachedProfile) document.documentElement.setAttribute('data-theme', cachedProfile.current_theme);
+        if (cachedTasks) { activeTasksData = cachedTasks; renderTasks(); }
+
+        setupEventListeners();
+
+        if (navigator.onLine) {
+            document.getElementById('syncStatus').innerHTML = `☁️ Fetching...`;
+            await loadTasks();
+        }
+
+        let d = new Date(); d.setDate(d.getDate() + 14);
+        document.getElementById('f_deadline').value = d.toISOString().split('T')[0];
+    }
+
+        async function checkAuth() {
+    try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (user) {
+            PROFILE_ID = user.id;
+            localStorage.setItem('fos_last_user_id', user.id);
+            return true;
+        }
+    } catch (err) {
+        // Network error — fall through to offline check
+    }
+    
+    // Offline: use cached identity set by parent (index.html)
+    const lastId = localStorage.getItem('fos_last_user_id');
+    if (lastId) {
+        PROFILE_ID = lastId;
+        return true;
+    }
+    
+    // No session — tell parent to redirect (NEVER redirect from iframe directly)
+    if (window.parent !== window) {
+        window.parent.postMessage('auth_required', '*');
+    } else {
+        window.location.href = 'login.html';
+    }
+    
+    return false;
+}
+
+
+    function openDrawer() {
+        drawerOpen = true;
+        const drawer = document.getElementById('formDrawer');
+        drawer.classList.add('is-open');
+        document.getElementById('drawerOverlay').classList.add('is-open');
+        document.getElementById('fabBtn').classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+        drawer.scrollTop = 0;
+        setTimeout(() => { if (!window.matchMedia('(hover: none) and (pointer: coarse)').matches) document.getElementById('f_subject').focus(); }, 400);
+    }
+
+    function closeDrawer() {
+        drawerOpen = false;
+        document.getElementById('formDrawer').classList.remove('is-open');
+        document.getElementById('drawerOverlay').classList.remove('is-open');
+        document.getElementById('fabBtn').classList.remove('is-open');
+        document.body.style.overflow = '';
+        if (editingTaskId) {
+            editingTaskId = null;
+            const btn = document.getElementById('submitBtn');
+            btn.innerText = "Deploy Matrix"; btn.style.background = "var(--primary)"; btn.style.color = "white";
+            document.getElementById('drawerTitle').innerText = "New Mission";
+            clearForm();
+        }
+    }
+
+    function toggleDrawer() {
+        lightTap();
+        if (drawerOpen) closeDrawer();
+        else { if (!editingTaskId) { document.getElementById('drawerTitle').innerText = "New Mission"; clearForm(); } openDrawer(); }
+    }
+
+    function clearForm() {
+        document.getElementById('f_subject').value = ''; document.getElementById('f_desc').value = ''; document.getElementById('f_work').value = '';
+        selectedPriority = 3;
+        document.querySelectorAll('.star').forEach(st => st.classList.toggle('active', parseInt(st.getAttribute('data-val')) <= 3));
+        document.querySelectorAll('.neo-input').forEach(input => input.classList.remove('input-error', 'shake'));
+        setUnit('Ch.'); toggleLockState(false);
+        let d = new Date(); d.setDate(d.getDate() + 14);
+        document.getElementById('f_deadline').value = d.toISOString().split('T')[0];
+    }
+
+    (function initSwipeToDismiss() {
+        let startY = 0, startScroll = 0, dragging = false;
+        const drawer = document.getElementById('formDrawer');
+        drawer.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; startScroll = drawer.scrollTop; dragging = true; }, { passive: true });
+        drawer.addEventListener('touchmove', (e) => {
+            if (!dragging || !drawerOpen) return;
+            const dy = e.touches[0].clientY - startY;
+            if (startScroll <= 0 && dy > 0) { const panel = drawer.querySelector('.form-panel'); if (panel) panel.style.transform = `translateY(${Math.min(dy * 0.5, 80)}px)`; }
+        }, { passive: true });
+        drawer.addEventListener('touchend', (e) => {
+            if (!dragging) return; dragging = false;
+            const panel = drawer.querySelector('.form-panel'); const dy = e.changedTouches[0].clientY - startY;
+            if (panel) panel.style.transform = '';
+            if (startScroll <= 0 && dy > 80) closeDrawer();
+        }, { passive: true });
+    })();
+
+    function setUnit(u) {
+        lightTap(); selectedUnit = u;
+        document.querySelectorAll('.unit-btn').forEach(b => b.classList.toggle('active', b.innerText === u));
+    }
+
+    function switchView(mode) {
+        lightTap(); currentViewMode = mode;
+        document.getElementById('btnViewActive').classList.toggle('active', mode === 'active');
+        document.getElementById('btnViewArchive').classList.toggle('active', mode === 'archive');
+        document.getElementById('viewTitleText').innerText = mode === 'active' ? 'Active Deployments' : 'The Archive';
+        renderTasks();
+    }
+
+    function toggleLockState(forceState = null) {
+        if (forceState !== null) isDeadlineLocked = forceState; else isDeadlineLocked = !isDeadlineLocked;
+        const btn = document.getElementById('btnLockToggle');
+        if (isDeadlineLocked) { btn.classList.add('locked'); document.getElementById('lockText').innerText = 'Locked'; document.getElementById('iconUnlock').style.display = 'none'; document.getElementById('iconLock').style.display = 'block'; }
+        else { btn.classList.remove('locked'); document.getElementById('lockText').innerText = 'Elastic'; document.getElementById('iconUnlock').style.display = 'block'; document.getElementById('iconLock').style.display = 'none'; }
+    }
+
+    async function loadTasks() {
+        if (!navigator.onLine) { renderTasks(); document.getElementById('syncStatus').innerHTML = `⚡ Offline`; return; }
+        const { data, error } = await supabaseClient.from('study_tasks').select('*').order('priority', { ascending: false });
+        if (error) { console.error(error); return; }
+        activeTasksData = data;
+        LocalCache.set('tasks', data);
+        renderTasks();
+        document.getElementById('syncStatus').innerHTML = `✅ Matrix Live`;
+        await flushOfflineQueue();
+    }
+
+    function renderTasks() {
+        const list = document.getElementById('taskList'); list.innerHTML = '';
+        let now = new Date().getTime(); let renderedCount = 0;
+        let uniqueSubjects = [...new Set(activeTasksData.map(t => t.subject))].sort();
+        const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+        const flipHint = isTouch ? 'TAP TO RETURN' : 'DBL-CLICK TO RETURN';
+
+        activeTasksData.forEach(task => {
+            let remain = task.total_work - (task.completed_work || 0);
+            let isMastered = remain <= 0;
+            if (currentViewMode === 'active' && isMastered) return;
+            if (currentViewMode === 'archive' && !isMastered) return;
+            renderedCount++;
+            let deadlineTime = new Date(task.deadline).getTime();
+            let daysLeft = Math.max(1, Math.ceil((deadlineTime - now) / (1000 * 3600 * 24)));
+            let dailyRate = isMastered ? 0 : Math.ceil(remain / daysLeft);
+            let progressPct = Math.min(100, Math.round(((task.completed_work || 0) / task.total_work) * 100));
+            let subjectIdx = uniqueSubjects.indexOf(task.subject);
+            let cardColor = isMastered ? '#E5E7EB' : SUBJECT_COLORS[subjectIdx % SUBJECT_COLORS.length];
+            let contentOpacity = isMastered ? 'opacity: 0.4;' : 'opacity: 1;';
+            let deadlineStr = new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            let lockIconHTML = task.is_locked ? `<svg viewBox="0 0 24 24" style="width:12px; height:12px; stroke:currentColor; stroke-width:3; fill:none; margin-left:6px; display:inline-block; vertical-align:middle;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>` : '';
+            let pendingLoad = Math.max(0, task.total_work - (task.completed_work || 0));
+            let invMins = task.time_invested || 0; let invHrs = Math.floor(invMins / 60); let invRem = invMins % 60;
+            let timeInvestedStr = invHrs > 0 ? `${invHrs}h ${invRem}m` : `${invRem}m`;
+            let starsHTML = '';
+            for(let i=0; i<task.priority; i++) starsHTML += `<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
+            let editBtnHTML = isMastered ? '' : `<button class="edit-btn" title="Edit Parameters" onclick="editTask('${task.id}', event)" aria-label="Edit task"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></button>`;
+            let card = document.createElement('div');
+            card.className = 'card-scene';
+            card.addEventListener('click', function(e) { if (e.target.closest('.delete-btn') || e.target.closest('.edit-btn')) return; lightTap(); this.classList.toggle('is-flipped'); });
+            card.innerHTML = `
+                <div class="card-flipper">
+                    <div class="card-face card-face-front" style="background-color: ${cardColor}">
+                        <div style="flex: 1; display: flex; flex-direction: column; ${contentOpacity}">
+                            <div class="card-header"><div class="card-pill">${task.total_work} ${task.unit}</div><div class="card-stars">${starsHTML}</div></div>
+                            <div class="card-title">${task.subject}</div>
+                            <div class="card-desc">${task.description || 'No specific parameters defined.'}</div>
+                            <div class="card-footer">
+                                <div class="neo-progress-bg"><div class="neo-progress-fill" style="width: ${progressPct}%"></div></div>
+                                <div class="card-stats">
+                                    <div class="stat-block"><div class="stat-val">${isMastered ? '-' : daysLeft}</div><div class="stat-lbl">Days Left</div></div>
+                                    <div class="stat-block" style="text-align:center;"><div class="stat-val">${dailyRate}</div><div class="stat-lbl">${task.unit}/Day</div></div>
+                                    <div class="stat-block" style="text-align:right;"><div class="stat-val">${progressPct}%</div><div class="stat-lbl">Mastery</div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-face card-face-back" style="background-color: ${cardColor}">
+                        <button class="delete-btn" title="${isMastered ? 'Purge from Archive' : 'Delete Mission'}" onclick="deleteTask('${task.id}', event)" aria-label="Delete task">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                        ${editBtnHTML}
+                        <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; ${contentOpacity}">
+                            <div class="back-title">Intel</div>
+                            <div class="back-divider"></div>
+                            <div style="width: 100%;">
+                                <div class="back-row"><span>Deadline</span> <span style="display:flex; align-items:center;">${deadlineStr}${lockIconHTML}</span></div>
+                                <div class="back-row"><span>Time Invested</span> <span style="color: #111827; font-weight: 900;">${timeInvestedStr}</span></div>
+                                <div class="back-row"><span>Completed</span> <span>${task.completed_work || 0} ${task.unit}</span></div>
+                                <div class="back-row" style="margin-top: 10px; border-top: 1px solid rgba(17,24,39,0.2); padding-top: 10px;"><span>Pending Work</span> <span style="color: #111827; font-weight: 900;">${pendingLoad} ${task.unit}</span></div>
+                            </div>
+                            <div class="back-hint" style="margin-top: 15px;">( ${flipHint} )</div>
+                        </div>
+                    </div>
+                </div>`;
+            list.appendChild(card);
+        });
+
+        if (renderedCount === 0) {
+            if (currentViewMode === 'active') {
+                list.innerHTML = `<div class="empty-state" style="cursor: pointer; transition: all 0.2s;" onclick="toggleDrawer()"><div style="font-size: 2rem; margin-bottom: 10px;">⚡</div>Matrix is clear.<br><span style="color: var(--primary); text-decoration: underline;">Click to Deploy New Mission</span></div>`;
+            } else {
+                list.innerHTML = `<div class="empty-state">Archive is empty. No completed missions.</div>`;
+            }
+        }
+    }
+
+    function editTask(id, event) {
+        event.stopPropagation();
+        const task = activeTasksData.find(t => t.id === id);
+        if (!task) return;
+        document.getElementById('f_subject').value = task.subject;
+        document.getElementById('f_desc').value = task.description || '';
+        document.getElementById('f_work').value = task.total_work;
+        document.getElementById('f_deadline').value = task.deadline;
+        setUnit(task.unit);
+        selectedPriority = task.priority;
+        document.querySelectorAll('.star').forEach(st => st.classList.toggle('active', parseInt(st.getAttribute('data-val')) <= selectedPriority));
+        toggleLockState(task.is_locked || false);
+        editingTaskId = id;
+        const btn = document.getElementById('submitBtn');
+        btn.innerText = "Update Parameters"; btn.style.background = "#FFB86B"; btn.style.color = "#111827";
+        document.getElementById('drawerTitle').innerText = "Edit Mission";
+        openDrawer();
+    }
+
+    async function deployTask() {
+        heavyTap();
+        const subjectInput = document.getElementById('f_subject');
+        const workInput = document.getElementById('f_work');
+        const deadlineInput = document.getElementById('f_deadline');
+        const subject = subjectInput.value.trim();
+        const desc = document.getElementById('f_desc').value.trim();
+        const workStr = workInput.value;
+        const work = parseInt(workStr);
+        const deadline = deadlineInput.value;
+        let isValid = true;
+        [subjectInput, workInput, deadlineInput].forEach(el => { el.classList.remove('input-error', 'shake'); void el.offsetWidth; });
+        if (!subject) { subjectInput.classList.add('input-error'); isValid = false; }
+        if (!workStr || isNaN(work) || work < 1) { workInput.classList.add('input-error'); isValid = false; }
+        if (!deadline) { deadlineInput.classList.add('input-error'); isValid = false; }
+        if (!isValid) { const panel = document.getElementById('mainFormPanel'); panel.classList.remove('shake'); void panel.offsetWidth; panel.classList.add('shake'); return; }
+
+        if (editingTaskId) {
+            const updateData = { title: subject, subject, description: desc, total_work: work, unit: selectedUnit, priority: selectedPriority, deadline, is_locked: isDeadlineLocked };
+            // Optimistic update
+            const idx = activeTasksData.findIndex(t => t.id === editingTaskId);
+            if (idx > -1) { activeTasksData[idx] = { ...activeTasksData[idx], ...updateData }; LocalCache.set('tasks', activeTasksData); }
+            await safeDbWrite({ type: 'update', table: 'study_tasks', data: updateData, match: { id: editingTaskId } });
+            editingTaskId = null;
+            const btn = document.getElementById('submitBtn');
+            btn.innerText = "Deploy Matrix"; btn.style.background = "var(--primary)"; btn.style.color = "white";
+            document.getElementById('drawerTitle').innerText = "New Mission";
+        } else {
+            const newTask = { user_id: PROFILE_ID, title: subject, subject, description: desc, total_work: work, completed_work: 0, unit: selectedUnit, priority: selectedPriority, deadline, time_invested: 0, is_locked: isDeadlineLocked };
+            // Optimistic insert with temp ID
+            const tempId = 'temp_' + Date.now();
+            activeTasksData.unshift({ ...newTask, id: tempId });
+            LocalCache.set('tasks', activeTasksData);
+            renderTasks();
+            const result = await safeDbWrite({ type: 'insert', table: 'study_tasks', data: newTask });
+            // Reload to get real IDs if online
+            if (navigator.onLine) setTimeout(loadTasks, 500);
+        }
+
+        closeDrawer(); clearForm();
+        if(currentViewMode === 'archive') switchView('active');
+        else renderTasks();
+    }
+
+    function deleteTask(id, event) {
+        event.stopPropagation(); heavyTap();
+        taskToDelete = id;
+        let isArchive = currentViewMode === 'archive';
+        document.getElementById('confirmDesc').innerText = isArchive ? "Purge this operation from the Archive? Its flashcards will be permanently destroyed." : "Terminate this deployment? All progress and flashcards will be wiped.";
+        document.getElementById('confirmModalOverlay').classList.add('active');
+    }
+
+    function cancelPurge(e) {
+        if (e && e.target !== e.currentTarget) return;
+        lightTap(); taskToDelete = null;
+        document.getElementById('confirmModalOverlay').classList.remove('active');
+    }
+
+    async function confirmPurge() {
+        heavyTap(); if (!taskToDelete) return;
+        const btn = document.querySelector('.btn-purge');
+        const origText = btn.innerText; btn.innerText = "PURGING..."; btn.style.pointerEvents = "none";
+        // Optimistic removal
+        activeTasksData = activeTasksData.filter(t => t.id !== taskToDelete);
+        LocalCache.set('tasks', activeTasksData); renderTasks();
+        await safeDbWrite({ type: 'delete', table: 'study_tasks', match: { id: taskToDelete } });
+        if (navigator.onLine) setTimeout(loadTasks, 300);
+        btn.innerText = origText; btn.style.pointerEvents = "auto";
+        cancelPurge();
+    }
+
+    init();
+</script>
+</body>
+</html>

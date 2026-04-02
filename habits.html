@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+
+<html lang="en" data-theme="default">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FocusOS | Execution Engine</title>
+    <link rel="stylesheet" href="themes.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="matrix-engine.js"></script>
+<script>
+    // Synchronous theme pre-loader to stop the iframe flash
+    try {
+        const userId = localStorage.getItem('fos_last_user_id');
+        if (userId) {
+            const rawProfile = localStorage.getItem('fos_idx_profile_' + userId);
+            if (rawProfile) {
+                const profile = JSON.parse(rawProfile).data;
+                if (profile && profile.current_theme) {
+                    document.documentElement.setAttribute('data-theme', profile.current_theme);
+                }
+            }
+        }
+    } catch(e) {}
+</script>
+
+
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-tap-highlight-color: transparent;}
+    body { background-color: var(--bg-color); color: var(--text-main); padding: 30px; transition: background-color 0.3s; user-select: none; }
+    .icon { width: 1.2em; height: 1.2em; display: inline-block; vertical-align: middle; stroke-width: 3; stroke: currentColor; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px; }
+    .header h1 { font-size: 2.2rem; font-weight: 900; letter-spacing: -1px; text-transform: uppercase; line-height: 1; }
+    .header p { color: var(--text-muted); font-size: 0.9rem; font-weight: 800; letter-spacing: 1px; margin-top: 8px; text-transform: uppercase;}
+    .sync-status { font-size: 0.8rem; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 5px; background: var(--panel-bg); padding: 8px 16px; border-radius: 50px; border: 2px solid var(--text-main); box-shadow: 2px 2px 0px var(--text-main); }
+    .offline-banner { display: none; background: #FFE873; color: #111827; border: 3px solid #111827; border-radius: 12px; padding: 10px 18px; margin-bottom: 20px; font-weight: 900; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; box-shadow: 4px 4px 0px #111827; }
+    .offline-banner.visible { display: block; }
+    .date-strip { display: flex; gap: 15px; margin-bottom: 30px; overflow-x: auto; padding-bottom: 15px; scrollbar-width: none; }
+    .date-strip::-webkit-scrollbar { display: none; }
+    .date-btn { min-width: 75px; background: var(--panel-bg); border: 3px solid var(--text-main); border-radius: 50px; padding: 15px 10px; text-align: center; cursor: pointer; transition: all 0.1s; box-shadow: 4px 4px 0px var(--text-main); color: var(--text-main); }
+    .date-btn:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px var(--text-main); }
+    .date-btn.active { background: var(--text-main); color: var(--bg-color); transform: translate(2px, 2px); box-shadow: 2px 2px 0px var(--primary); }
+    .date-day { font-size: 0.7rem; font-weight: 900; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 1px; opacity: 0.8; }
+    .date-num { font-size: 1.5rem; font-weight: 900; line-height: 1; }
+    .layout-grid { display: grid; grid-template-columns: 1fr 380px; gap: 40px; max-width: 1400px; }
+    .section-title { font-size: 1rem; font-weight: 900; color: var(--text-main); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid var(--text-main); padding-bottom: 10px; }
+    .section-title span { color: var(--text-muted); font-size: 0.8rem; font-weight: 800; background: var(--bg-color); padding: 4px 10px; border: 2px solid var(--text-main); border-radius: 50px; box-shadow: 2px 2px 0px var(--text-main); }
+    .task-list { display: flex; flex-direction: column; gap: 20px; margin-bottom: 30px; }
+    .task-card { background: var(--panel-bg); border: 3px solid var(--text-main); border-radius: 16px; padding: 20px; display: flex; align-items: center; justify-content: space-between; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 6px 6px 0px var(--text-main); cursor: pointer; position: relative; overflow: hidden; color: var(--text-main); }
+    .task-card:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0px var(--text-main); }
+
+    /* ── DONE STATE — improved visibility ── */
+    .task-card.done { opacity: 0.82; background: var(--bg-color); border-color: var(--text-main); transform: translate(4px, 4px); box-shadow: 2px 2px 0px var(--text-main); }
+    .task-card.done:hover { transform: translate(4px, 4px); box-shadow: 2px 2px 0px var(--text-main); }
+
+    .task-card.card-colored { border-color: #111827; color: #111827; box-shadow: 6px 6px 0px #111827; }
+    .task-card.card-colored .task-title { color: #111827; }
+    .task-card.card-colored .oracle-btn { border-color: #111827; color: #111827; box-shadow: 2px 2px 0px #111827; background: #ffffff; }
+    .task-card.card-colored .check-circle { border-color: #111827; box-shadow: 3px 3px 0px #111827; background: #ffffff; }
+    .task-card.card-colored .check-circle svg { stroke: #111827; }
+    .task-card.card-colored .meta-tag { background: #ffffff; color: #111827; border-color: #111827; box-shadow: 2px 2px 0px #111827; }
+    .task-card.card-colored.done { opacity: 0.82; background-color: #E5E7EB !important; border-color: var(--text-main); color: var(--text-main); box-shadow: 2px 2px 0px var(--text-main); transform: translate(4px, 4px); }
+    .task-card.card-colored.done .task-title { color: var(--text-main); }
+    .task-card.card-colored.done .check-circle { border-color: var(--text-main); background-color: var(--text-main); box-shadow: 0px 0px 0px transparent; }
+    .task-card.card-colored.done .check-circle svg { stroke: var(--panel-bg); }
+    .task-card.card-colored.done .meta-tag { box-shadow: 0px 0px 0px transparent; }
+    .task-info { display: flex; flex-direction: column; gap: 6px; flex: 1; z-index: 2; }
+    .task-title { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.5px; transition: color 0.3s; }
+    .task-card.done .task-title { text-decoration: line-through; opacity: 0.72; }
+    .task-meta { font-size: 0.75rem; font-weight: 900; text-transform: uppercase; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .meta-tag { background: #ffffff; color: #111827; border: 2px solid #111827; padding: 4px 10px; border-radius: 50px; box-shadow: 2px 2px 0px #111827; }
+    .task-card.done .meta-tag { box-shadow: 0px 0px 0px transparent; opacity: 0.7; }
+    .task-actions { display: flex; align-items: center; gap: 15px; z-index: 2; }
+    .oracle-btn { background: var(--panel-bg); border: 2px solid var(--text-main); color: var(--text-main); cursor: pointer; padding: 8px; border-radius: 10px; display: flex; align-items: center; justify-content: center; transition: all 0.1s; box-shadow: 2px 2px 0px var(--text-main); }
+    .oracle-btn svg { width: 20px; height: 20px; stroke-width: 2.5; }
+    .oracle-btn:active { transform: translate(2px, 2px); box-shadow: 0px 0px 0px transparent; }
+    .task-card.done .oracle-btn { display: none; }
+    .delete-btn { background: #FF4747; border: 2px solid var(--text-main); color: white; cursor: pointer; padding: 8px; border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 2px 2px 0px var(--text-main); transition: all 0.1s; }
+    .delete-btn svg { width: 20px; height: 20px; stroke-width: 2.5;}
+    .delete-btn:active { transform: translate(2px, 2px); box-shadow: 0px 0px 0px transparent; }
+    .check-circle { width: 36px; height: 36px; border-radius: 50%; border: 3px solid var(--text-main); display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; background: var(--bg-color); z-index: 2; box-shadow: 3px 3px 0px var(--text-main); }
+    .check-circle svg { width: 20px; height: 20px; stroke: var(--bg-color); stroke-width: 4; stroke-dasharray: 24; stroke-dashoffset: 24; transition: stroke-dashoffset 0.2s ease-out; }
+    .task-card.done .check-circle { background: var(--text-main); box-shadow: 0px 0px 0px transparent; transform: translate(2px, 2px); border-color: var(--text-main); }
+    .task-card.done .check-circle svg { stroke-dashoffset: 0; stroke: var(--panel-bg); }
+    .clump-container { background: var(--panel-bg); border: 3px solid var(--text-main); border-radius: 16px; padding: 25px; margin-bottom: 20px; box-shadow: 6px 6px 0px var(--text-main); }
+    .clump-header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 3px solid var(--text-main); }
+    .clump-header.done { opacity: 0.72; }
+    .clump-header.done .clump-parent-title { text-decoration: line-through; }
+    .clump-parent-title { font-weight: 900; font-size: 1.2rem; color: var(--text-main); display: flex; align-items: center; gap: 10px; flex: 1; text-transform: uppercase; letter-spacing: -0.5px;}
+    .clump-protocol-badge { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 900; color: #111827; background: #FFB86B; padding: 6px 12px; border-radius: 50px; border: 2px solid #111827; box-shadow: 2px 2px 0px #111827;}
+    .clump-container.clump-colored { border-color: #111827; color: #111827; box-shadow: 6px 6px 0px #111827; }
+    .clump-container.clump-colored .clump-parent-title { color: #111827; }
+    .clump-container.clump-colored .clump-header { border-bottom-color: #111827; }
+    .clump-container.clump-colored .clump-list::before { background: #111827; }
+    .clump-container.clump-colored .frag-title { color: #111827; }
+    .clump-container.clump-colored .frag-time { color: #111827; opacity: 0.8; }
+    .clump-container.clump-colored .frag-row .check-circle { border-color: #111827; box-shadow: 2px 2px 0px #111827; background: #ffffff; }
+    .clump-container.clump-colored .frag-row.done { opacity: 0.72; }
+    .clump-container.clump-colored .frag-row.done .frag-title { color: #111827; }
+    .clump-container.clump-colored .frag-row.done .check-circle { background-color: #111827; border-color: #111827; box-shadow: 0px 0px 0px transparent; }
+    .clump-container.clump-colored .frag-row.done .check-circle svg { stroke: #ffffff; }
+    .clump-container.clump-colored .delete-btn { border-color: #111827; box-shadow: 2px 2px 0px #111827;}
+    .clump-list { display: flex; flex-direction: column; position: relative; padding-left: 10px; }
+    .clump-list::before { content: ''; position: absolute; top: 15px; bottom: 30px; left: 26px; width: 4px; background: var(--text-main); z-index: 1; border-radius: 2px; }
+    .frag-row { display: flex; align-items: center; gap: 20px; padding: 12px 0; position: relative; z-index: 2; cursor: pointer; transition: transform 0.2s; }
+    .frag-row:hover { transform: translateX(5px); }
+    .frag-row.done { opacity: 0.72; }
+    .frag-row.done .frag-title { text-decoration: line-through; opacity: 0.75; }
+    .frag-row .check-circle { width: 30px; height: 30px; border-width: 3px; box-shadow: 2px 2px 0px var(--text-main); }
+    .frag-row.done .check-circle { background: var(--text-main); transform: translate(2px,2px); box-shadow: 0px 0px 0px transparent; }
+    .frag-row.done .check-circle svg { stroke-dashoffset: 0; stroke: var(--panel-bg); }
+    .frag-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+    .frag-title { font-size: 1rem; font-weight: 800; color: var(--text-main); }
+    .frag-time { font-size: 0.75rem; font-weight: 900; text-transform: uppercase; opacity: 0.6; }
+
+    /* ── FLOATING ADD BUTTON ── */
+    .fab {
+        position: fixed;
+        bottom: max(36px, env(safe-area-inset-bottom, 36px));
+        right: 28px;
+        width: 64px;
+        height: 64px;
+        background: var(--primary);
+        border: 3px solid var(--text-main);
+        border-radius: 50%;
+        box-shadow: 5px 5px 0px var(--text-main);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 200;
+        transition: transform 0.15s, box-shadow 0.15s;
+        color: white;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+    .fab:active { transform: translate(5px, 5px); box-shadow: 0px 0px 0px var(--text-main); }
+    .fab svg { width: 30px; height: 30px; stroke: white; stroke-width: 3; flex-shrink: 0; pointer-events: none; }
+    @keyframes fabPulse {
+        0%   { box-shadow: 5px 5px 0px var(--text-main), 0 0 0 0 rgba(107,164,237,0.35); }
+        70%  { box-shadow: 5px 5px 0px var(--text-main), 0 0 0 14px rgba(107,164,237,0); }
+        100% { box-shadow: 5px 5px 0px var(--text-main), 0 0 0 0 rgba(107,164,237,0); }
+    }
+    .fab { animation: fabPulse 2.8s ease-out 1.5s 3; }
+
+    .pull-forward-banner { display: none; background: #86EFAC; color: #111827; border: 3px solid #111827; border-radius: 20px; padding: 20px 25px; margin-bottom: 30px; box-shadow: 6px 6px 0px #111827; animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .pull-forward-banner.active { display: block; }
+    .pf-title { font-size: 1.1rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+    .pf-subtitle { font-size: 0.85rem; font-weight: 700; opacity: 0.8; margin-bottom: 15px; }
+    .pull-forward-btn { background: #111827; color: white; border: 2px solid #111827; padding: 12px 24px; border-radius: 12px; font-weight: 900; text-transform: uppercase; cursor: pointer; font-size: 0.9rem; letter-spacing: 1px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 4px 4px 0px rgba(0,0,0,0.3); transition: all 0.1s; }
+    .pull-forward-btn:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px transparent; }
+    .pull-forward-btn svg { width: 18px; height: 18px; stroke-width: 2.5; }
+
+    /* ── INTEL MODAL — no parent dim, self-contained overlay ── */
+    .intel-modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+    .intel-modal-overlay.active { display: flex; }
+    .intel-modal-content { background: var(--panel-bg); width: 90%; max-width: 500px; border: 3px solid var(--text-main); border-radius: 24px; padding: 30px; box-shadow: 10px 10px 0px var(--text-main); animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); position: relative; }
+    .intel-modal-header { margin-bottom: 25px; }
+    .intel-modal-header h2 { font-size: 1.5rem; font-weight: 900; text-transform: uppercase; letter-spacing: -0.5px; display: flex; align-items: center; gap: 10px; }
+    .intel-modal-header h2 svg { width: 24px; height: 24px; stroke: var(--primary); stroke-width: 3; fill: none; }
+    .intel-modal-header p { font-size: 0.85rem; color: var(--text-muted); font-weight: 700; margin-top: 6px; }
+    .intel-close-btn { position: absolute; top: -12px; right: -12px; background: #FF4747; border: 3px solid var(--text-main); color: white; width: 36px; height: 36px; border-radius: 50%; font-size: 1.1rem; font-weight: 900; cursor: pointer; box-shadow: 2px 2px 0px var(--text-main); display: flex; align-items: center; justify-content: center; transition: all 0.1s; }
+    .intel-close-btn:active { transform: translate(2px, 2px); box-shadow: 0px 0px 0px transparent; }
+    .intel-options { display: flex; flex-direction: column; gap: 12px; }
+    .intel-option { background: var(--bg-color); border: 3px solid var(--text-main); border-radius: 16px; padding: 16px 20px; cursor: pointer; box-shadow: 4px 4px 0px var(--text-main); transition: all 0.15s; display: flex; align-items: center; gap: 16px; }
+    .intel-option:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0px var(--text-main); }
+    .intel-option:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px transparent; }
+    .intel-option.deploying { pointer-events: none; opacity: 0.6; }
+    .intel-option-icon { width: 44px; height: 44px; border-radius: 12px; border: 2px solid var(--text-main); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1.2rem; }
+    .intel-option-body { flex: 1; }
+    .intel-option-type { font-size: 0.65rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.6; margin-bottom: 3px; }
+    .intel-option-name { font-size: 1rem; font-weight: 900; letter-spacing: -0.3px; }
+    .intel-option-detail { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-top: 2px; }
+    .intel-option-cl { font-size: 0.75rem; font-weight: 900; padding: 4px 10px; border: 2px solid var(--text-main); border-radius: 50px; background: var(--panel-bg); flex-shrink: 0; text-align: center; }
+    .intel-empty { text-align: center; padding: 30px 20px; color: var(--text-muted); font-weight: 800; text-transform: uppercase; font-size: 0.9rem; border: 3px dashed var(--border-color); border-radius: 16px; }
+    .side-panel { background: var(--panel-bg); border: 3px solid var(--text-main); border-radius: 24px; padding: 30px; box-shadow: 6px 6px 0px var(--text-main); height: fit-content; position: sticky; top: 30px; display: flex; flex-direction: column; }
+    .progress-ring-container { position: relative; width: 200px; height: 200px; margin: 0 auto 30px auto; display: flex; align-items: center; justify-content: center; }
+    .progress-ring { transform: rotate(-90deg); filter: drop-shadow(4px 4px 0px var(--text-main)); }
+    .progress-ring__track { stroke: var(--bg-color); stroke-width: 16; fill: var(--bg-color); }
+    .progress-ring__circle { stroke: var(--text-main); stroke-width: 16; stroke-linecap: butt; transition: stroke-dashoffset 1s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .ring-text { position: absolute; text-align: center; }
+    .ring-text h2 { font-size: 3rem; font-weight: 900; line-height: 1; color: var(--text-main); letter-spacing: -2px; text-shadow: 2px 2px 0px var(--panel-bg); }
+    .ring-text p { font-size: 0.85rem; text-transform: uppercase; font-weight: 900; color: var(--text-main); letter-spacing: 1px; margin-top: 5px; opacity: 0.8;}
+    .reward-box { background: #FFE873; border-radius: 16px; padding: 20px; text-align: center; border: 3px solid var(--text-main); box-shadow: 4px 4px 0px var(--text-main); transition: transform 0.2s; }
+    .reward-box:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0px var(--text-main); }
+    .reward-box h4 { font-size: 0.8rem; color: #111827; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; opacity: 0.7; }
+    .reward-val { font-size: 2rem; font-weight: 900; color: #111827; text-shadow: 2px 2px 0px var(--gold); }
+
+    /* ── TASK MODAL — self-contained overlay, no parent dim ── */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.65); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
+    .modal-overlay.active { display: flex; }
+    .modal-content { background: var(--panel-bg); width: 90%; max-width: 420px; padding: 30px; border-radius: 20px; border: 3px solid var(--text-main); position: relative; box-shadow: 10px 10px 0px var(--text-main); animation: slideUp 0.2s ease-out; }
+    .close-modal { position: absolute; top: -15px; right: -15px; background: #FF4747; border: 3px solid var(--text-main); width: 40px; height: 40px; border-radius: 50%; font-size: 1.2rem; font-weight: 900; color: white; cursor: pointer; box-shadow: 2px 2px 0px var(--text-main); transition: all 0.1s;}
+    .close-modal:active { transform: translate(2px, 2px); box-shadow: 0px 0px 0px transparent; }
+    .modal-title { font-size: 1.5rem; font-weight: 900; color: var(--text-main); margin-bottom: 20px; text-transform: uppercase; letter-spacing: -0.5px;}
+    .modal-input { width: 100%; padding: 15px; border-radius: 12px; border: 3px solid var(--text-main); background: var(--bg-color); color: var(--text-main); font-size: 1.1rem; font-weight: 800; outline: none; margin-bottom: 20px; box-shadow: 4px 4px 0px var(--text-main); }
+    .modal-input:focus { box-shadow: 4px 4px 0px var(--primary); }
+    .modal-btn { width: 100%; padding: 15px; background: var(--primary); color: #111827; border: 3px solid var(--text-main); border-radius: 12px; font-weight: 900; font-size: 1.1rem; text-transform: uppercase; cursor: pointer; box-shadow: 4px 4px 0px var(--text-main); transition: all 0.1s; letter-spacing: 1px;}
+    .modal-btn:active { transform: translate(3px, 3px); box-shadow: 0px 0px 0px transparent; }
+    .oracle-glitch { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111827; z-index: 10; display: none; align-items: center; justify-content: center; color: #00ffcc; font-weight: 900; font-size: 1.5rem; text-transform: uppercase; letter-spacing: 2px; }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes popIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .protocol-toggle-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-weight: 900; font-size: 0.85rem; text-transform: uppercase; color: var(--text-muted); }
+    .toggle-switch { position: relative; width: 44px; height: 24px; background: var(--bg-color); border: 2px solid var(--text-main); border-radius: 50px; cursor: pointer; transition: all 0.3s; }
+    .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: var(--text-main); border-radius: 50%; transition: all 0.3s; }
+    .toggle-switch.active { background: var(--primary); }
+    .toggle-switch.active::after { transform: translateX(20px); background: #111827; }
+    .day-bitmask { display: none; gap: 8px; justify-content: space-between; margin-bottom: 20px; }
+    .day-bitmask.active { display: flex; animation: popIn 0.2s ease-out; }
+    .day-bit-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--bg-color); border: 2px solid var(--text-main); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.8rem; color: var(--text-main); cursor: pointer; transition: all 0.1s; }
+    .day-bit-btn.active { background: var(--text-main); color: var(--bg-color); box-shadow: 2px 2px 0px var(--primary); transform: translate(-1px, -1px); }
+    .memory-glow { border: 3px solid #111827 !important; box-shadow: 6px 6px 0px #111827 !important; animation: vaultBounce 2s infinite alternate ease-in-out; }
+    .memory-glow::before { content: ''; position: absolute; top: 0; left: -100%; width: 60%; height: 100%; background: linear-gradient(to right, rgba(255,255,255,0), rgba(255,255,255,0.6), rgba(255,255,255,0)); transform: skewX(-25deg); animation: vaultSweep 4s infinite linear; pointer-events: none; z-index: 1; }
+    @keyframes vaultBounce { 0% { transform: translateY(0); } 100% { transform: translateY(-4px); } }
+    @keyframes vaultSweep { 0% { left: -100%; } 20% { left: 200%; } 100% { left: 200%; } }
+    .memory-glow.done { animation: none !important; box-shadow: 2px 2px 0px var(--text-main) !important; transform: translate(4px, 4px) !important; }
+    .memory-glow.done::before { display: none; }
+    @media (max-width: 1000px) { .layout-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 768px) {
+        html { background-color: var(--bg-color) !important; min-height: 100vh !important; }
+        body { padding: 15px 10px 140px 10px !important; }
+        .progress-ring-container { height: 200px !important; transform: scale(0.85); margin-top: -20px !important; margin-bottom: -15px !important; }
+        .progress-ring { width: 200px !important; height: 200px !important; }
+        .side-panel { position: relative !important; top: 0 !important; padding: 20px !important; margin-bottom: 10px !important; }
+        .layout-grid { gap: 15px !important; padding-bottom: 0 !important; }
+        .task-card { padding: 15px !important; }
+        .header { margin-bottom: 15px !important; align-items: center !important; }
+        .header h1 { font-size: 1.3rem !important; }
+        .header p { font-size: 0.65rem !important; margin-top: 2px !important; line-height: 1.1 !important; }
+        .sync-status { padding: 4px 8px !important; font-size: 0.6rem !important; }
+        .date-strip { gap: 10px !important; margin-bottom: 20px !important; padding-bottom: 5px !important; }
+        .date-btn { min-width: 48px !important; width: 48px !important; height: 48px !important; padding: 0 !important; display: flex !important; flex-direction: column !important; justify-content: center !important; align-items: center !important; border-radius: 50% !important; border-width: 2px !important; }
+        .date-day { font-size: 0.5rem !important; margin-bottom: -2px !important; }
+        .date-num { font-size: 1rem !important; }
+        .intel-modal-content { padding: 20px; }
+        .intel-option { padding: 12px 15px; gap: 12px; }
+        .fab { bottom: max(24px, env(safe-area-inset-bottom, 24px)); right: 20px; width: 60px; height: 60px; }
+    }
+</style>
+
+
+</head>
+
+<body>
+    <div class="header">
+        <div><h1>Execution Engine</h1><p>Daily algorithmic missions & manual operations.</p></div>
+        <div class="sync-status" id="syncStatus"><svg class="icon" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg> Syncing</div>
+    </div>
+
+
+<div class="offline-banner" id="offlineBanner">⚡ Offline Mode — Changes will sync when connection restores.</div>
+
+<div class="date-strip" id="dateStrip"></div>
+
+<div class="pull-forward-banner" id="pullForwardBanner">
+    <div class="pf-title"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:#111827;stroke-width:3;fill:none;flex-shrink:0;"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg> Day Cleared. Matrix Surplus Detected.</div>
+    <div class="pf-subtitle">All assigned missions complete. Pull a future operation forward to maintain momentum.</div>
+    <button class="pull-forward-btn" onclick="openTacticalIntelModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 12 12 17 22 12"></polyline><polyline points="2 17 12 22 22 17"></polyline></svg>
+        Open Tactical Intel
+    </button>
+</div>
+
+<div class="layout-grid">
+    <div style="padding-bottom: 20px;">
+        <div id="memorySection" style="display: none;">
+            <div class="section-title" style="color: var(--text-main);">Memory Maintenance <span id="memoryTaskCount">0 Active</span></div>
+            <div class="task-list" id="memoryList"></div>
+        </div>
+        <div class="section-title">Daily Directives <span id="totalTaskCount">0 Missions</span></div>
+        <div class="task-list" id="unifiedTaskList"></div>
+        <div style="height: 80px;"></div>
+    </div>
+    <div class="side-panel">
+        <div class="section-title" style="border: none; justify-content: center; font-size: 1.2rem; letter-spacing: -0.5px;">Daily Completion</div>
+        <div class="progress-ring-container">
+            <svg class="progress-ring" width="200" height="200"><circle class="progress-ring__track" fill="transparent" r="85" cx="100" cy="100"/><circle class="progress-ring__circle" id="progressCircle" fill="transparent" r="85" cx="100" cy="100"/></svg>
+            <div class="ring-text"><h2 id="percentText">0%</h2><p>Cleared</p></div>
+        </div>
+        <div class="reward-box"><h4>Today's Earnings</h4><div class="reward-val" id="dailyCoins">+0 Coins</div></div>
+        <p style="text-align:center; font-size:0.75rem; color:var(--text-main); opacity: 0.7; margin-top:20px; font-weight:800; text-transform: uppercase;">Missions adapt algorithmically.<br>The Oracle breaks bottlenecks.</p>
+    </div>
+</div>
+
+<!-- FLOATING ADD BUTTON -->
+<button class="fab" id="fabBtn" onclick="openCustomTaskModal()" title="Add Manual Operation" aria-label="Add manual operation">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>
+
+<!-- Add Custom Task Modal -->
+<div class="modal-overlay" id="taskModal">
+    <div class="modal-content">
+        <button class="close-modal" onclick="closeTaskModal()">✕</button>
+        <div class="modal-title">Manual Operation</div>
+        <input type="text" id="customTaskInput" class="modal-input" placeholder="e.g. Write Essay Draft..." style="margin-bottom: 15px;" onkeypress="if(event.key === 'Enter') submitCustomTask()">
+        <div class="protocol-toggle-row"><span>Save as Recurring Protocol</span><div class="toggle-switch" id="protocolToggleBtn" onclick="toggleProtocolMode()"></div></div>
+        <div class="day-bitmask" id="dayBitmaskContainer">
+            <div class="day-bit-btn active" data-day="0" onclick="toggleDayBit(this)">S</div>
+            <div class="day-bit-btn active" data-day="1" onclick="toggleDayBit(this)">M</div>
+            <div class="day-bit-btn active" data-day="2" onclick="toggleDayBit(this)">T</div>
+            <div class="day-bit-btn active" data-day="3" onclick="toggleDayBit(this)">W</div>
+            <div class="day-bit-btn active" data-day="4" onclick="toggleDayBit(this)">T</div>
+            <div class="day-bit-btn active" data-day="5" onclick="toggleDayBit(this)">F</div>
+            <div class="day-bit-btn active" data-day="6" onclick="toggleDayBit(this)">S</div>
+        </div>
+        <button class="modal-btn" onclick="submitCustomTask()">Deploy Operation</button>
+    </div>
+</div>
+
+<!-- Tactical Intel Modal -->
+<div class="intel-modal-overlay" id="tacticalIntelModal">
+    <div class="intel-modal-content">
+        <button class="intel-close-btn" onclick="closeTacticalIntelModal()">✕</button>
+        <div class="intel-modal-header">
+            <h2><svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 12 12 17 22 12"></polyline><polyline points="2 17 12 22 22 17"></polyline></svg> Tactical Intel</h2>
+            <p>Select one target to pull forward into today's mission log.</p>
+        </div>
+        <div class="intel-options" id="intelOptionsList"><div class="intel-empty">Analyzing future timelines...</div></div>
+    </div>
+</div>
+
+
+<script>
+    // ══════════════════════════════════════════════════════════════════════
+    // OFFLINE QUEUE — IndexedDB-backed write queue
+    // ══════════════════════════════════════════════════════════════════════
+    const OfflineQueue = {
+        DB_NAME: 'focusos_queue', STORE: 'pending_ops', _db: null,
+        async open() {
+            if (this._db) return this._db;
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(this.DB_NAME, 1);
+                req.onupgradeneeded = e => e.target.result.createObjectStore(this.STORE, { autoIncrement: true });
+                req.onsuccess = e => { this._db = e.target.result; resolve(this._db); };
+                req.onerror = () => reject(req.error);
+            });
+        },
+        async push(op) {
+            const db = await this.open();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(this.STORE, 'readwrite');
+                tx.objectStore(this.STORE).add({ ...op, _queuedAt: Date.now() });
+                tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
+            });
+        },
+        async getAllWithKeys() {
+            const db = await this.open();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(this.STORE, 'readonly');
+                const results = [];
+                const cursor = tx.objectStore(this.STORE).openCursor();
+                cursor.onsuccess = e => { const c = e.target.result; if (c) { results.push({ key: c.key, value: c.value }); c.continue(); } else resolve(results); };
+                cursor.onerror = () => reject();
+            });
+        },
+        async deleteKey(key) {
+            const db = await this.open();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(this.STORE, 'readwrite');
+                tx.objectStore(this.STORE).delete(key);
+                tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
+            });
+        }
+    };
+
+    // ══════════════════════════════════════════════════════════════════════
+    // LOCAL CACHE — localStorage-backed data cache
+    // ══════════════════════════════════════════════════════════════════════
+    const LocalCache = {
+        TTL: 24 * 60 * 60 * 1000,
+        set(key, data) {
+            try { localStorage.setItem('fos_' + key, JSON.stringify({ ts: Date.now(), data })); } catch(e) {}
+        },
+        get(key) {
+            try {
+                const raw = localStorage.getItem('fos_' + key);
+                if (!raw) return null;
+                const p = JSON.parse(raw);
+                if (Date.now() - p.ts > this.TTL) { localStorage.removeItem('fos_' + key); return null; }
+                return p.data;
+            } catch(e) { return null; }
+        }
+    };
+
+    // ══════════════════════════════════════════════════════════════════════
+    // SAFE DB WRITE
+    // ══════════════════════════════════════════════════════════════════════
+    async function executeDbOp(op) {
+        const sb = supabaseClient;
+        if (op.type === 'insert') return await sb.from(op.table).insert([op.data]);
+        if (op.type === 'update') { let q = sb.from(op.table).update(op.data); for (const [k,v] of Object.entries(op.match)) q=q.eq(k,v); return await q; }
+        if (op.type === 'delete') { let q = sb.from(op.table).delete(); for (const [k,v] of Object.entries(op.match)) q=q.eq(k,v); return await q; }
+        if (op.type === 'upsert') return await sb.from(op.table).upsert([op.data]);
+    }
+
+    async function safeDbWrite(operation) {
+        if (!navigator.onLine) { await OfflineQueue.push(operation); return { queued: true }; }
+        try { return await executeDbOp(operation); }
+        catch(e) { await OfflineQueue.push(operation); return { queued: true }; }
+    }
+
+    async function flushOfflineQueue() {
+        if (!navigator.onLine) return;
+        let items;
+        try { items = await OfflineQueue.getAllWithKeys(); } catch(e) { return; }
+        if (!items || items.length === 0) return;
+        let flushed = 0;
+        for (const item of items) {
+            try { await executeDbOp(item.value); await OfflineQueue.deleteKey(item.key); flushed++; }
+            catch(e) { console.warn('[FocusOS] Queue flush failed:', e); }
+        }
+        if (flushed > 0) {
+            console.log(`[FocusOS] Flushed ${flushed} ops`);
+            showMatrixToast(`Synced ${flushed} offline operation${flushed > 1 ? 's' : ''}.`);
+        }
+    }
+
+    // Network listeners
+    window.addEventListener('online', () => {
+        document.getElementById('offlineBanner').classList.remove('visible');
+        document.getElementById('syncStatus').innerHTML = `<svg class="icon" viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;stroke-width:2.5;fill:none;"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg> Syncing`;
+        flushOfflineQueue().then(() => { document.getElementById('syncStatus').innerHTML = `✅ Matrix Live`; });
+    });
+    window.addEventListener('offline', () => {
+        document.getElementById('offlineBanner').classList.add('visible');
+        document.getElementById('syncStatus').innerHTML = `⚡ Offline`;
+    });
+
+    // ══════════════════════════════════════════════════════════════════════
+    // MAIN APP
+    // ══════════════════════════════════════════════════════════════════════
+    const SUPABASE_URL = 'https://xyhswdekhebcdmiyxfbo.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_UsVbr-Rs8gDF-H9OdXKQEQ_qpv0Pf2m';
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let PROFILE_ID = null;
+    let selectedDate = new Date(); selectedDate.setHours(0,0,0,0);
+    let appData = {}, activeTasks = [], dailyCustom = [], memoryLog = [];
+    let globalProfile = { xp: 0, coins: 0 };
+    let coinsEarnedToday = 0;
+    let _lastTimeline = null;
+    let pullForwardOverrides = {};
+
+    const SUBJECT_COLORS = ['#6ba4ed', '#ff6b81', '#10b981', '#f59e0b', '#8a65e8', '#0ea5e9', '#ec407a', '#f43f5e', '#8b5cf6', '#14b8a6'];
+    const circle = document.getElementById('progressCircle');
+    const radius = circle.r.baseVal.value;
+    const circumference = radius * 2 * Math.PI;
+    circle.style.strokeDasharray = `${circumference} ${circumference}`;
+    circle.style.strokeDashoffset = circumference;
+
+    function getParentTaskId(memId) {
+        if (activeTasks.find(t => t.id === memId)) return memId;
+        const match = activeTasks.find(t => memId.startsWith(t.id + '_part'));
+        if (match) return match.id;
+        const lu = memId.lastIndexOf('_part');
+        return lu > 0 ? memId.substring(0, lu) : memId;
+    }
+
+    function showMatrixToast(msg) {
+        if (window.parent) window.parent.postMessage('matrix_toast:' + msg, '*');
+    }
+
+    async function checkAuth() {
+        try {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (user) {
+                PROFILE_ID = user.id;
+                localStorage.setItem('fos_last_user_id', user.id);
+                return true;
+            }
+        } catch (err) {
+            // Network error — fall through to offline check
+        }
+        const lastId = localStorage.getItem('fos_last_user_id');
+        if (lastId) {
+            PROFILE_ID = lastId;
+            return true;
+        }
+        if (window.parent !== window) {
+            window.parent.postMessage('auth_required', '*');
+        } else {
+            window.location.href = 'login.html';
+        }
+        return false;
+    }
+
+    async function init() {
+        const isAuth = await checkAuth();
+        if (!isAuth) return;
+
+        if (!navigator.onLine) {
+            document.getElementById('offlineBanner').classList.add('visible');
+            document.getElementById('syncStatus').innerHTML = `⚡ Offline`;
+        }
+
+        const cachedProfile = LocalCache.get('profile_' + PROFILE_ID);
+        const cachedTasks = LocalCache.get('tasks');
+        const cachedCustom = LocalCache.get('custom_ops');
+        const cachedMemory = LocalCache.get('memory_logs');
+        const cachedAppData = LocalCache.get('app_data');
+
+        if (cachedProfile) { globalProfile = cachedProfile; MatrixEngine.setConfig(cachedProfile.system_config); document.documentElement.setAttribute('data-theme', cachedProfile.current_theme); }
+        if (cachedTasks) activeTasks = cachedTasks;
+        if (cachedCustom) dailyCustom = _parseCustomOps(cachedCustom);
+        if (cachedMemory) memoryLog = _parseMemoryLogs(cachedMemory);
+        if (cachedAppData) appData = cachedAppData;
+
+        buildDateStrip();
+        renderDay();
+
+        if (navigator.onLine) {
+            document.getElementById('syncStatus').innerHTML = `☁️ Fetching...`;
+            await fetchFreshData();
+        }
+    }
+
+    function _parseCustomOps(rawOps) {
+        return rawOps.map(op => ({
+            id: op.id, text: op.task_text, timeHint: op.time_hint,
+            isOracleGen: op.is_oracle_gen, parentTitle: op.parent_title,
+            protocolName: op.protocol_name, parentColorClass: op.parent_color_class,
+            done: op.is_done, date: parseInt(op.target_date),
+            repeatPattern: op.repeat_pattern || null
+        }));
+    }
+
+    function _parseMemoryLogs(rawLogs) {
+        return rawLogs.map(m => ({
+            id: m.id, title: m.title, repetitionCount: m.repetition_count,
+            easeFactor: m.ease_factor, interval: m.interval,
+            nextReviewDate: parseInt(m.next_review_date)
+        }));
+    }
+
+    async function fetchFreshData() {
+        try {
+            const [profileRes, tasksRes, customRes, memRes, execsRes] = await Promise.all([
+                supabaseClient.from('user_profile').select('*').eq('id', PROFILE_ID).single(),
+                supabaseClient.from('study_tasks').select('*').order('priority', { ascending: false }),
+                supabaseClient.from('custom_operations').select('*').eq('user_id', PROFILE_ID),
+                supabaseClient.from('memory_logs').select('*').eq('user_id', PROFILE_ID),
+                supabaseClient.from('daily_executions').select('*').eq('user_id', PROFILE_ID)
+            ]);
+
+            if (profileRes.data) {
+                globalProfile = profileRes.data;
+                MatrixEngine.setConfig(profileRes.data.system_config);
+                document.documentElement.setAttribute('data-theme', profileRes.data.current_theme);
+                LocalCache.set('profile_' + PROFILE_ID, profileRes.data);
+            }
+            if (tasksRes.data) { activeTasks = tasksRes.data; LocalCache.set('tasks', tasksRes.data); }
+            if (customRes.data) { dailyCustom = _parseCustomOps(customRes.data); LocalCache.set('custom_ops', customRes.data); }
+            if (memRes.data) { memoryLog = _parseMemoryLogs(memRes.data); LocalCache.set('memory_logs', memRes.data); }
+
+            appData = {};
+            if (execsRes.data) {
+                execsRes.data.forEach(ex => {
+                    let d = new Date(parseInt(ex.execution_date));
+                    if (isNaN(d.getTime())) return;
+                    let yr = d.getFullYear(), mo = d.getMonth(), dy = d.getDate();
+                    if (!appData[yr]) appData[yr] = {};
+                    if (!appData[yr][mo]) appData[yr][mo] = {};
+                    if (!appData[yr][mo][dy]) appData[yr][mo][dy] = {};
+                    if (ex.id && ex.id.startsWith('rev_')) {
+                        let wp = ex.id.substring(4);
+                        let memItem = memoryLog.find(m => wp.startsWith(m.id + '_') || wp === m.id);
+                        let memId = memItem ? memItem.id : wp;
+                        appData[yr][mo][dy]['rev_' + memId] = true;
+                    } else if (ex.id && ex.id.startsWith('cust_')) {
+                        let wp = ex.id.substring(5); let lu = wp.lastIndexOf('_');
+                        let custId = lu > 0 ? wp.substring(0, lu) : wp;
+                        appData[yr][mo][dy]['cust_' + custId] = true;
+                    } else {
+                        let cur = appData[yr][mo][dy][ex.task_id] || 0;
+                        appData[yr][mo][dy][ex.task_id] = cur + 1;
+                    }
+                });
+                LocalCache.set('app_data', appData);
+            }
+
+            document.getElementById('syncStatus').innerHTML = `✅ Matrix Live`;
+            await flushOfflineQueue();
+        } catch(e) {
+            console.error('[FocusOS] fetchFreshData error:', e);
+            document.getElementById('syncStatus').innerHTML = `⚠️ Sync Error`;
+        }
+        buildDateStrip();
+        renderDay();
+    }
+
+    window.addEventListener('message', async (event) => {
+        if (event.data === 'sync_bank') {
+            if (!navigator.onLine) return;
+            const { data } = await supabaseClient.from('user_profile').select('current_theme, xp, coins').eq('id', PROFILE_ID).single();
+            if (data) { document.documentElement.setAttribute('data-theme', data.current_theme); globalProfile.xp = data.xp; globalProfile.coins = data.coins; }
+        }
+    });
+
+    function buildDateStrip() {
+        const strip = document.getElementById('dateStrip'); strip.innerHTML = '';
+        const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        let d = new Date(); d.setDate(d.getDate() - 2); d.setHours(0,0,0,0);
+        for (let i = 0; i < 14; i++) {
+            const loopDate = new Date(d);
+            const isToday = (loopDate.getTime() === new Date().setHours(0,0,0,0));
+            const btn = document.createElement('div');
+            btn.className = `date-btn ${loopDate.getTime() === selectedDate.getTime() ? 'active' : ''}`;
+            btn.innerHTML = `<div class="date-day">${isToday ? 'Today' : days[loopDate.getDay()]}</div><div class="date-num">${loopDate.getDate()}</div>`;
+            btn.onclick = () => {
+                selectedDate = new Date(loopDate); selectedDate.setHours(0,0,0,0);
+                document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                pullForwardOverrides = {};
+                renderDay();
+            };
+            strip.appendChild(btn);
+            d.setDate(d.getDate() + 1);
+            if (isToday) setTimeout(() => btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }), 100);
+        }
+    }
+
+    function renderDay() {
+        const yr = selectedDate.getFullYear(), mo = selectedDate.getMonth(), dy = selectedDate.getDate();
+        const unifiedList = document.getElementById('unifiedTaskList'); unifiedList.innerHTML = '';
+        const memList = document.getElementById('memoryList'); memList.innerHTML = '';
+        let totalTasks = 0, completedTasks = 0, totalMemoryTasks = 0, completedMemoryTasks = 0;
+        coinsEarnedToday = 0;
+
+        const todayNum = new Date().setHours(0,0,0,0);
+        const isToday = selectedDate.getTime() === todayNum;
+        const isPast = selectedDate.getTime() < todayNum;
+        let targetDayIndex = Math.floor((selectedDate.getTime() - todayNum) / (1000 * 3600 * 24));
+
+        const timeline = MatrixEngine.analyzeTimelines(activeTasks, memoryLog, dailyCustom, appData, new Date());
+        _lastTimeline = timeline;
+        let taskSpread = timeline.taskSpread;
+        let uniqueSubjects = [...new Set(activeTasks.map(t => t.subject))].sort();
+
+        const selectedMidnight = selectedDate.getTime();
+
+        const dueReviews = memoryLog.filter(rev => {
+            let isDoneToday = appData[yr] && appData[yr][mo] && appData[yr][mo][dy] && appData[yr][mo][dy]['rev_' + rev.id];
+            if (isPast && !isDoneToday) return false;
+            let reviewMidnight = new Date(rev.nextReviewDate); reviewMidnight.setHours(0,0,0,0);
+            return reviewMidnight.getTime() <= selectedMidnight || isDoneToday;
+        });
+
+        if (dueReviews.length > 0) {
+            document.getElementById('memorySection').style.display = 'block';
+            dueReviews.forEach(rev => {
+                let parentTaskId = getParentTaskId(rev.id);
+                let parentTask = activeTasks.find(t => t.id === parentTaskId);
+                let subjectName = parentTask ? parentTask.subject : (rev.title || 'Memory Card');
+                let parentUnit = parentTask ? parentTask.unit : 'Unit';
+                let parentDesc = parentTask && parentTask.description ? parentTask.description.substring(0, 35) + (parentTask.description.length > 35 ? '...' : '') : 'Recall Operation';
+                let isDone = !!(appData[yr] && appData[yr][mo] && appData[yr][mo][dy] && appData[yr][mo][dy]['rev_' + rev.id]);
+                totalMemoryTasks++;
+                if (isDone) { completedMemoryTasks++; coinsEarnedToday += 5; }
+                let shortDesc = rev.title || parentDesc;
+                let titleText = `${subjectName} <span style="font-size:0.85rem; font-weight:900; color:inherit; opacity:0.6;">(${shortDesc})</span>`;
+                let partMatch = rev.title ? rev.title.match(/\(Part (\d+)\)/) : null;
+                let partNum = partMatch ? partMatch[1] : '?';
+                let currentRep = rev.repetitionCount + (isDone ? 0 : 1);
+                let badgeText = `RECALL: ${parentUnit.toUpperCase()} PART ${partNum} | REP ${currentRep} | INTERVAL: ${rev.interval}d`;
+                const card = document.createElement('div');
+                card.className = `task-card card-colored memory-glow ${isDone ? 'done' : ''}`;
+                if (!isDone) card.style.backgroundColor = '#FFD700';
+                card.innerHTML = `
+                    <div class="task-info">
+                        <div class="task-title">${titleText}</div>
+                        <div class="task-meta"><span class="meta-tag review-tag">${badgeText}</span></div>
+                    </div>
+                    <div class="task-actions"><div class="check-circle"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>`;
+                if (!isPast) {
+                    card.querySelector('.task-info').onclick = () => executeMemoryReview(rev.id, yr, mo, dy, isDone);
+                    card.querySelector('.check-circle').onclick = () => executeMemoryReview(rev.id, yr, mo, dy, isDone);
+                }
+                memList.appendChild(card);
+            });
+            document.getElementById('memoryTaskCount').innerText = `${dueReviews.length} Active`;
+            document.getElementById('memoryTaskCount').style.background = '#C084FC';
+            document.getElementById('memoryTaskCount').style.color = '#111827';
+        } else {
+            document.getElementById('memorySection').style.display = 'none';
+        }
+
+        activeTasks.forEach(task => {
+            let completedTodayCount = 0;
+            if (appData[yr] && appData[yr][mo] && appData[yr][mo][dy] && appData[yr][mo][dy][task.id] !== undefined) {
+                let val = appData[yr][mo][dy][task.id];
+                completedTodayCount = (typeof val === 'boolean') ? (val ? 1 : 0) : val;
+            }
+            let extraUnits = pullForwardOverrides[task.id] || 0;
+            let dailyLoad = 0;
+            if (isPast) {
+                dailyLoad = completedTodayCount;
+            } else if (targetDayIndex >= 0 && targetDayIndex < 30) {
+                let engineAssigned = taskSpread[task.id] ? taskSpread[task.id][targetDayIndex] : 0;
+                dailyLoad = targetDayIndex === 0 ? engineAssigned + completedTodayCount + extraUnits : engineAssigned;
+            }
+            if (dailyLoad <= 0) return;
+            let pinnedStart = Math.max(0, (task.completed_work || 0) - completedTodayCount);
+
+            for (let i = 0; i < dailyLoad; i++) {
+                let isDone = i < completedTodayCount;
+                if (isPast && !isDone) continue;
+                totalTasks++;
+                if (isDone) { completedTasks++; coinsEarnedToday += 10; }
+                let oracleKey = `oracle_${task.id}_${i}`;
+                let isDeconstructed = appData[yr] && appData[yr][mo] && appData[yr][mo][dy] && appData[yr][mo][dy][oracleKey];
+                if (isDeconstructed) { completedTasks++; continue; }
+                let subjectIdx = uniqueSubjects.indexOf(task.subject);
+                let cardColor = SUBJECT_COLORS[subjectIdx % SUBJECT_COLORS.length];
+                let shortDesc = task.description ? task.description.substring(0, 35) + (task.description.length > 35 ? '...' : '') : 'Standard Operation';
+                let titleText = `${task.subject} <span style="font-size:0.85rem; font-weight:900; color:inherit; opacity:0.6;">(${shortDesc})</span>`;
+                let currentGlobalUnit = Math.min(pinnedStart + i + 1, task.total_work);
+                let badgeText = `${task.unit.toUpperCase()} ${currentGlobalUnit} / ${task.total_work}`;
+                let starsHTML = '<div style="display:flex; gap:2px; margin-left:8px;">';
+                for(let j=0; j<task.priority; j++) starsHTML += `<svg viewBox="0 0 24 24" style="width:14px; height:14px; fill:#111827; color:#111827;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
+                starsHTML += '</div>';
+                let isPulledForward = extraUnits > 0 && i >= (dailyLoad - extraUnits);
+                let pfBadge = isPulledForward ? `<span class="meta-tag" style="background:#86EFAC; color:#111827; border-color:#111827; box-shadow:2px 2px 0px #111827;">PULLED FORWARD</span>` : '';
+                const card = document.createElement('div');
+                card.className = `task-card card-colored ${isDone ? 'done' : ''}`;
+                if (!isDone) card.style.backgroundColor = cardColor;
+                card.innerHTML = `
+                    <div class="oracle-glitch" id="glitch_${task.id}_${i}">DEPLOYING PROTOCOL...</div>
+                    <div class="task-info"><div class="task-title">${titleText}</div><div class="task-meta"><span class="meta-tag">${badgeText}</span>${starsHTML}${pfBadge}</div></div>
+                    <div class="task-actions">
+                        <button class="oracle-btn" title="Consult the Oracle (Cost: 5 Coins)"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 12 12 17 22 12"></polyline><polyline points="2 17 12 22 22 17"></polyline></svg></button>
+                        <div class="check-circle"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
+                    </div>`;
+                if (!isPast) {
+                    card.querySelector('.task-info').onclick = () => toggleAlgoTask(task.id, yr, mo, dy, isDone, i, task.subject, currentGlobalUnit, task.deadline);
+                    card.querySelector('.check-circle').onclick = () => toggleAlgoTask(task.id, yr, mo, dy, isDone, i, task.subject, currentGlobalUnit, task.deadline);
+                    card.querySelector('.oracle-btn').onclick = (e) => consultOracle('algo', task.id, i, task.subject, task.unit, null, e);
+                } else { card.querySelector('.oracle-btn').style.display = 'none'; }
+                unifiedList.appendChild(card);
+            }
+        });
+
+        const currentDow = selectedDate.getDay().toString();
+        const dayCustom = dailyCustom.filter(t => {
+            if (!t.repeatPattern && t.date === selectedDate.getTime()) return true;
+            if (t.repeatPattern) {
+                let s = JSON.stringify(t.repeatPattern);
+                if (s.includes(currentDow) && selectedDate.getTime() >= t.date) return true;
+            }
+            return false;
+        });
+        dayCustom.forEach(t => {
+            if (t.repeatPattern) t.done = !!(appData[yr] && appData[yr][mo] && appData[yr][mo][dy] && appData[yr][mo][dy]['cust_' + t.id]);
+        });
+        const validCustom = isPast ? dayCustom.filter(t => t.done) : dayCustom;
+        const pureCustom = validCustom.filter(t => !t.isOracleGen);
+        const oracleFragments = validCustom.filter(t => t.isOracleGen);
+
+        pureCustom.forEach(task => {
+            totalTasks++;
+            if (task.done) { completedTasks++; coinsEarnedToday += 5; }
+            let metaTagHTML = task.repeatPattern
+                ? `<span class="meta-tag" style="background:#FFB86B; color:#111827; border-color:#111827; box-shadow:2px 2px 0px #111827;">PROTOCOL</span>`
+                : `<span class="meta-tag">1 Operation</span>`;
+            const card = document.createElement('div');
+            card.className = `task-card ${task.done ? 'done' : ''}`;
+            card.innerHTML = `
+                <div class="oracle-glitch" id="glitch_custom_${task.id}">DEPLOYING PROTOCOL...</div>
+                <div class="task-info"><div class="task-title">${task.text}</div><div class="task-meta">${metaTagHTML}</div></div>
+                <div class="task-actions">
+                    <button class="oracle-btn" title="Consult the Oracle"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 12 12 17 22 12"></polyline><polyline points="2 17 12 22 22 17"></polyline></svg></button>
+                    <button class="delete-btn" title="Delete Operation"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+                    <div class="check-circle"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
+                </div>`;
+            if (!isPast) {
+                card.querySelector('.task-info').onclick = () => toggleCustomTask(task.id);
+                card.querySelector('.check-circle').onclick = () => toggleCustomTask(task.id);
+                card.querySelector('.delete-btn').onclick = (e) => deleteCustomTask(task.id, e);
+                card.querySelector('.oracle-btn').onclick = (e) => consultOracle('custom', task.id, 0, task.text, 'Generic', null, e);
+            } else { card.querySelector('.oracle-btn').style.display = 'none'; card.querySelector('.delete-btn').style.display = 'none'; }
+            unifiedList.appendChild(card);
+        });
+
+        const clumps = {};
+        oracleFragments.forEach(t => { const p = t.parentTitle || 'Deconstructed Task'; if (!clumps[p]) clumps[p] = []; clumps[p].push(t); });
+        for (const [parentTitle, frags] of Object.entries(clumps)) {
+            const clumpContainer = document.createElement('div');
+            let allDone = frags.every(f => f.done);
+            let protocolName = frags[0] && frags[0].protocolName ? frags[0].protocolName : 'System Override';
+            let subjectIdx = uniqueSubjects.indexOf(parentTitle);
+            let clumpColor = subjectIdx > -1 ? SUBJECT_COLORS[subjectIdx % SUBJECT_COLORS.length] : '#FFB86B';
+            clumpContainer.className = `clump-container clump-colored`;
+            if (!allDone) clumpContainer.style.backgroundColor = clumpColor;
+            clumpContainer.innerHTML = `
+                <div class="clump-header ${allDone ? 'done' : ''}">
+                    <div class="clump-parent-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width:20px; color:inherit;"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>${parentTitle}</div>
+                    <div class="clump-protocol-badge">${protocolName}</div>
+                </div>
+                <div class="clump-list"></div>`;
+            const clumpList = clumpContainer.querySelector('.clump-list');
+            frags.forEach(task => {
+                totalTasks++;
+                if (task.done) { completedTasks++; coinsEarnedToday += 5; }
+                const row = document.createElement('div');
+                row.className = `frag-row ${task.done ? 'done' : ''}`;
+                let deleteBtnHtml = isPast ? '' : `<button class="delete-btn" onclick="deleteCustomTask('${task.id}', event)" title="Delete Fragment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>`;
+                row.innerHTML = `
+                    <div class="check-circle tree-node" ${!isPast ? `onclick="toggleCustomTask('${task.id}')"` : ''}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </div>
+                    <div class="frag-info" ${!isPast ? `onclick="toggleCustomTask('${task.id}')"` : ''}>
+                        <div class="frag-title">${task.text}</div>
+                        <div class="frag-time">${task.timeHint || 'Action Item'}</div>
+                    </div>
+                    <div class="frag-actions">${deleteBtnHtml}</div>`;
+                clumpList.appendChild(row);
+            });
+            unifiedList.appendChild(clumpContainer);
+        }
+
+        const taskBadge = document.getElementById('totalTaskCount');
+        taskBadge.innerText = `${totalTasks} Missions`;
+        if (totalTasks > 0) { taskBadge.style.background = 'var(--primary)'; taskBadge.style.color = '#111827'; }
+        else { taskBadge.style.background = 'var(--bg-color)'; taskBadge.style.color = 'var(--text-muted)'; }
+
+        if (totalTasks === 0 && dueReviews.length === 0) {
+            unifiedList.innerHTML = `<div style="text-align:center; padding: 40px 20px; color:var(--text-muted); font-weight:800; font-size:1.1rem; text-transform:uppercase; border: 3px dashed var(--border-color); border-radius: 16px;">Matrix clear. No operations active.</div>`;
+        }
+        updateProgress(totalTasks + totalMemoryTasks, completedTasks + completedMemoryTasks, isToday, totalTasks, completedTasks);
+    }
+
+    function openTacticalIntelModal() {
+        const modal = document.getElementById('tacticalIntelModal');
+        const optsList = document.getElementById('intelOptionsList');
+        modal.classList.add('active');
+        // NOTE: No parent dim — modal uses its own backdrop overlay
+        if (!_lastTimeline) { optsList.innerHTML = '<div class="intel-empty">No timeline data available.</div>'; return; }
+        const today = new Date(); today.setHours(0,0,0,0);
+        const taskSpread = _lastTimeline.taskSpread || {};
+        let candidates = [];
+        activeTasks.forEach(task => {
+            let remain = (task.total_work || 1) - (task.completed_work || 0);
+            if (remain <= 0 || pullForwardOverrides[task.id]) return;
+            for (let d = 1; d < 30; d++) {
+                let units = taskSpread[task.id] ? taskSpread[task.id][d] : 0;
+                if (units > 0) { candidates.push({ task, dayOffset: d, units, cl: MatrixEngine.calculateCognitiveLoad(task.unit, units) }); break; }
+            }
+        });
+        if (candidates.length === 0) { optsList.innerHTML = '<div class="intel-empty">No future operations available.</div>'; return; }
+        let usedIds = new Set(), intelOptions = [];
+        const tryAdd = (candidate, typeLabel, icon, iconBg) => {
+            if (!candidate || usedIds.has(candidate.task.id)) { candidate = candidates.find(c => !usedIds.has(c.task.id)); if (!candidate) return; }
+            usedIds.add(candidate.task.id);
+            intelOptions.push({ ...candidate, typeLabel, icon, iconBg });
+        };
+        tryAdd(candidates.slice().sort((a,b) => b.task.priority - a.task.priority)[0], 'Priority Target', '⭐', '#FFE873');
+        tryAdd(candidates.slice().sort((a,b) => a.cl - b.cl)[0], 'Quick Win', '⚡', '#86EFAC');
+        const t0 = today.getTime();
+        let debtCandidates = candidates.filter(c => { let dStr = c.task.deadline.split('T')[0], [y,m,d] = dStr.split('-'); return new Date(parseInt(y),parseInt(m)-1,parseInt(d)).getTime() < t0; });
+        tryAdd(debtCandidates.length > 0 ? debtCandidates.sort((a,b) => new Date(a.task.deadline.split('T')[0]) - new Date(b.task.deadline.split('T')[0]))[0] : candidates.slice().sort((a,b) => a.dayOffset - b.dayOffset)[0], 'Debt Breaker', '🔥', '#FF87E9');
+        if (intelOptions.length === 0) { optsList.innerHTML = '<div class="intel-empty">All operations are optimally placed.</div>'; return; }
+        optsList.innerHTML = '';
+        intelOptions.forEach(opt => {
+            let daysUntil = opt.dayOffset === 1 ? 'Tomorrow' : `In ${opt.dayOffset} days`;
+            let deadlineStr = new Date(opt.task.deadline.split('T')[0]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const el = document.createElement('div');
+            el.className = 'intel-option';
+            el.innerHTML = `
+                <div class="intel-option-icon" style="background:${opt.iconBg}; border-color:#111827;">${opt.icon}</div>
+                <div class="intel-option-body">
+                    <div class="intel-option-type">${opt.typeLabel}</div>
+                    <div class="intel-option-name">${opt.task.subject}</div>
+                    <div class="intel-option-detail">Scheduled ${daysUntil} · Deadline ${deadlineStr} · ${opt.units} ${opt.task.unit}</div>
+                </div>
+                <div class="intel-option-cl">${opt.cl.toFixed(1)} CL</div>`;
+            el.onclick = () => deployPullForward(opt, el);
+            optsList.appendChild(el);
+        });
+    }
+
+    function closeTacticalIntelModal() {
+        document.getElementById('tacticalIntelModal').classList.remove('active');
+        // NOTE: No parent dim — no dim_off needed
+    }
+
+    function deployPullForward(opt, el) {
+        el.classList.add('deploying');
+        el.querySelector('.intel-option-type').innerText = 'Authorizing...';
+        pullForwardOverrides[opt.task.id] = (pullForwardOverrides[opt.task.id] || 0) + opt.units;
+        closeTacticalIntelModal();
+        document.getElementById('pullForwardBanner').classList.remove('active');
+        renderDay();
+        showMatrixToast('Operation pulled forward. Complete it to lock in progress.');
+    }
+
+    async function consultOracle(type, id, chunkIndex, title, unit, colorClass, event) {
+        event.stopPropagation();
+        if (globalProfile.coins < 5) return alert("The Oracle requires 5 Coins to perform a deconstruction.");
+        if (!confirm(`Consult the AI Oracle? This costs 5 Coins.`)) return;
+        globalProfile.coins -= 5;
+        let glitchId = type === 'algo' ? `glitch_${id}_${chunkIndex}` : `glitch_custom_${id}`;
+        let glitch = document.getElementById(glitchId);
+        if (glitch) { glitch.style.display = 'flex'; glitch.innerText = 'ESTABLISHING NEURAL LINK...'; }
+        let baseTitle = title.length > 25 ? title.substring(0,25)+'...' : title;
+        let generatedTasks = [], protocolName = 'AI Execution Protocol';
+        let description = 'No extra description provided.', loadInfo = '';
+        if (type === 'algo') {
+            let taskData = activeTasks.find(t => t.id === id);
+            if (taskData) { if (taskData.description) description = taskData.description; let cur = Math.min((taskData.completed_work||0)+1, taskData.total_work); loadInfo = `(Current Load: Part ${cur} of ${taskData.total_work})`; }
+        }
+        try {
+            const PROXY_URL = 'https://oracle-proxy.vgaur.workers.dev';
+            const prompt = `You are the FocusOS Oracle. Deconstruct: "${title}" ${loadInfo}\nContext: "${description}"\nUnit: ${unit}\nGenerate 2-5 specific execution fragments using measurable verbs only.\nRespond ONLY as JSON array: [{"text": "...", "time": "XXm"}]`;
+            const response = await fetch(PROXY_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
+            const data = await response.json();
+            let rawText = data.candidates[0].content.parts[0].text;
+            rawText = rawText.replace(/```json/g,'').replace(/```/g,'').trim();
+            generatedTasks = JSON.parse(rawText);
+        } catch(err) {
+            console.error('Oracle link failed:', err);
+            alert('The Oracle failed to connect. Your coins have been refunded.');
+            globalProfile.coins += 5;
+            if (glitch) glitch.style.display = 'none';
+            return;
+        }
+        setTimeout(async () => {
+            let newDbOps = [];
+            generatedTasks.forEach(t => {
+                let newId = Date.now().toString() + Math.random();
+                dailyCustom.push({ id: newId, text: t.text, timeHint: t.time, done: false, date: selectedDate.getTime(), isOracleGen: true, parentTitle: baseTitle, protocolName, parentColorClass: colorClass });
+                newDbOps.push({ id: newId, user_id: PROFILE_ID, task_text: t.text, time_hint: t.time, is_oracle_gen: true, parent_title: baseTitle, protocol_name: protocolName, parent_color_class: colorClass, is_done: false, target_date: selectedDate.getTime() });
+            });
+            for (const op of newDbOps) await safeDbWrite({ type: 'insert', table: 'custom_operations', data: op });
+            if (type === 'algo') {
+                const yr2 = selectedDate.getFullYear(), mo2 = selectedDate.getMonth(), dy2 = selectedDate.getDate();
+                if (!appData[yr2]) appData[yr2] = {}; if (!appData[yr2][mo2]) appData[yr2][mo2] = {}; if (!appData[yr2][mo2][dy2]) appData[yr2][mo2][dy2] = {};
+                let cur = appData[yr2][mo2][dy2][id] || 0; let cnt = (typeof cur === 'boolean') ? (cur ? 1 : 0) : cur;
+                appData[yr2][mo2][dy2][id] = cnt + 1;
+                const taskIdx = activeTasks.findIndex(t => t.id === id);
+                if (taskIdx > -1) {
+                    activeTasks[taskIdx].completed_work = (activeTasks[taskIdx].completed_work || 0) + 1;
+                    await safeDbWrite({ type: 'update', table: 'study_tasks', data: { completed_work: activeTasks[taskIdx].completed_work }, match: { id } });
+                }
+                appData[yr2][mo2][dy2][`oracle_${id}_${chunkIndex}`] = true;
+            } else if (type === 'custom') {
+                dailyCustom = dailyCustom.filter(t => t.id !== id);
+                await safeDbWrite({ type: 'delete', table: 'custom_operations', match: { id } });
+            }
+            renderDay();
+            if(window.parent) window.parent.postMessage('sync_bank', '*');
+        }, 800);
+    }
+
+    async function executeMemoryReview(memId, yr, mo, dy, isCurrentlyDone) {
+        if (!appData[yr]) appData[yr] = {}; if (!appData[yr][mo]) appData[yr][mo] = {}; if (!appData[yr][mo][dy]) appData[yr][mo][dy] = {};
+        let item = memoryLog.find(m => m.id === memId);
+        if (!item) return;
+        if (!isCurrentlyDone) {
+            appData[yr][mo][dy]['rev_' + memId] = true;
+            if (item.repetitionCount === 0) item.interval = 1;
+            else if (item.repetitionCount === 1) item.interval = 6;
+            else item.interval = Math.round(item.interval * item.easeFactor);
+            item.repetitionCount++;
+            let nextDate = new Date(selectedDate.getTime()); nextDate.setDate(nextDate.getDate() + item.interval);
+            item.nextReviewDate = nextDate.getTime();
+            confetti({ particleCount: 60, spread: 80, origin: { y: 0.7 } });
+            globalProfile.xp += 10; globalProfile.coins += 5;
+            let parentTaskId = getParentTaskId(memId);
+            const execId = `rev_${memId}_${selectedDate.getTime()}`;
+            await safeDbWrite({ type: 'insert', table: 'daily_executions', data: { id: execId, user_id: PROFILE_ID, task_id: parentTaskId, execution_date: selectedDate.getTime() } });
+        } else {
+            appData[yr][mo][dy]['rev_' + memId] = false;
+            item.repetitionCount = Math.max(0, item.repetitionCount - 1);
+            if (item.repetitionCount === 0) item.interval = 1;
+            else if (item.repetitionCount === 1) item.interval = 6;
+            else item.interval = Math.round(item.interval / item.easeFactor);
+            item.nextReviewDate = new Date(selectedDate.getTime()).getTime();
+            globalProfile.xp = Math.max(0, globalProfile.xp - 10);
+            globalProfile.coins = Math.max(0, globalProfile.coins - 5);
+            await safeDbWrite({ type: 'delete', table: 'daily_executions', match: { id: `rev_${memId}_${selectedDate.getTime()}` } });
+        }
+        safeDbWrite({ type: 'update', table: 'memory_logs', data: { repetition_count: item.repetitionCount, interval: item.interval, next_review_date: item.nextReviewDate }, match: { id: memId } });
+        safeDbWrite({ type: 'update', table: 'user_profile', data: { xp: globalProfile.xp, coins: globalProfile.coins }, match: { id: PROFILE_ID } });
+        renderDay();
+        if(window.parent) window.parent.postMessage('sync_bank', '*');
+    }
+
+    async function toggleAlgoTask(taskId, yr, mo, dy, isCurrentlyDone, chunkIndex, subjectText, globalUnit) {
+        if (!appData[yr]) appData[yr] = {}; if (!appData[yr][mo]) appData[yr][mo] = {}; if (!appData[yr][mo][dy]) appData[yr][mo][dy] = {};
+        let cur = appData[yr][mo][dy][taskId]; let cnt = (typeof cur === 'boolean') ? (cur ? 1 : 0) : (cur || 0);
+        let change = isCurrentlyDone ? -1 : 1;
+        appData[yr][mo][dy][taskId] = Math.max(0, cnt + change);
+        const taskIdx = activeTasks.findIndex(t => t.id === taskId);
+        if (taskIdx > -1) {
+            activeTasks[taskIdx].completed_work = (activeTasks[taskIdx].completed_work || 0) + change;
+            safeDbWrite({ type: 'update', table: 'study_tasks', data: { completed_work: activeTasks[taskIdx].completed_work }, match: { id: taskId } });
+        }
+        if (!isCurrentlyDone && pullForwardOverrides[taskId] && pullForwardOverrides[taskId] > 0) {
+            pullForwardOverrides[taskId]--;
+            if (pullForwardOverrides[taskId] === 0) delete pullForwardOverrides[taskId];
+        }
+        let memId = `${taskId}_part${chunkIndex}`;
+        let execId = `algo_${taskId}_${chunkIndex}_${selectedDate.getTime()}`;
+        if (!isCurrentlyDone) {
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, zIndex: 100 });
+            globalProfile.xp += 20; globalProfile.coins += 10;
+            safeDbWrite({ type: 'insert', table: 'daily_executions', data: { id: execId, user_id: PROFILE_ID, task_id: taskId, execution_date: selectedDate.getTime() } });
+            if (!memoryLog.find(m => m.id === memId)) {
+                let tmrw = new Date(selectedDate.getTime()); tmrw.setDate(tmrw.getDate() + 1);
+                let actualPart = globalUnit || (chunkIndex + 1);
+                let newFlashcard = { id: memId, title: `${subjectText} (Part ${actualPart})`, repetitionCount: 0, easeFactor: 2.5, interval: 1, nextReviewDate: tmrw.getTime() };
+                memoryLog.push(newFlashcard);
+                safeDbWrite({ type: 'insert', table: 'memory_logs', data: { id: memId, user_id: PROFILE_ID, title: newFlashcard.title, repetition_count: 0, ease_factor: 2.5, interval: 1, next_review_date: tmrw.getTime() } });
+            }
+        } else {
+            globalProfile.xp = Math.max(0, globalProfile.xp - 20);
+            globalProfile.coins = Math.max(0, globalProfile.coins - 10);
+            safeDbWrite({ type: 'delete', table: 'daily_executions', match: { id: execId } });
+            let existingMem = memoryLog.find(m => m.id === memId);
+            if (existingMem && existingMem.repetitionCount === 0) {
+                memoryLog = memoryLog.filter(m => m.id !== memId);
+                safeDbWrite({ type: 'delete', table: 'memory_logs', match: { id: memId } });
+            }
+        }
+        LocalCache.set('app_data', appData);
+        renderDay();
+        safeDbWrite({ type: 'update', table: 'user_profile', data: { xp: globalProfile.xp, coins: globalProfile.coins }, match: { id: PROFILE_ID } });
+        if(window.parent) window.parent.postMessage('sync_bank', '*');
+    }
+
+    async function toggleCustomTask(id) {
+        const task = dailyCustom.find(t => t.id === id);
+        if (!task) return;
+        task.done = !task.done;
+        if (task.done) { confetti({ particleCount: 50, spread: 50, origin: { y: 0.7 }, zIndex: 100 }); globalProfile.xp += 10; globalProfile.coins += 5; }
+        else { globalProfile.xp = Math.max(0, globalProfile.xp - 10); globalProfile.coins = Math.max(0, globalProfile.coins - 5); }
+        if (task.repeatPattern) {
+            const yr2 = selectedDate.getFullYear(), mo2 = selectedDate.getMonth(), dy2 = selectedDate.getDate();
+            if (!appData[yr2]) appData[yr2] = {}; if (!appData[yr2][mo2]) appData[yr2][mo2] = {}; if (!appData[yr2][mo2][dy2]) appData[yr2][mo2][dy2] = {};
+            appData[yr2][mo2][dy2]['cust_' + id] = task.done;
+            if (task.done) safeDbWrite({ type: 'insert', table: 'daily_executions', data: { id: `cust_${id}_${selectedDate.getTime()}`, user_id: PROFILE_ID, task_id: id, execution_date: selectedDate.getTime() } });
+            else safeDbWrite({ type: 'delete', table: 'daily_executions', match: { id: `cust_${id}_${selectedDate.getTime()}` } });
+        } else {
+            safeDbWrite({ type: 'update', table: 'custom_operations', data: { is_done: task.done }, match: { id } });
+        }
+        LocalCache.set('app_data', appData);
+        renderDay();
+        safeDbWrite({ type: 'update', table: 'user_profile', data: { xp: globalProfile.xp, coins: globalProfile.coins }, match: { id: PROFILE_ID } });
+        if(window.parent) window.parent.postMessage('sync_bank', '*');
+    }
+
+    function openCustomTaskModal() {
+        document.getElementById('taskModal').classList.add('active');
+        const input = document.getElementById('customTaskInput');
+        input.value = '';
+        isProtocolMode = false;
+        document.getElementById('protocolToggleBtn').classList.remove('active');
+        document.getElementById('dayBitmaskContainer').classList.remove('active');
+        document.querySelectorAll('.day-bit-btn').forEach(b => b.classList.add('active'));
+        setTimeout(() => input.focus(), 100);
+        // NOTE: No parent dim — modal has its own backdrop
+    }
+
+    function closeTaskModal() {
+        document.getElementById('taskModal').classList.remove('active');
+        // NOTE: No parent dim — no dim_off needed
+    }
+
+    let isProtocolMode = false;
+    function toggleProtocolMode() { isProtocolMode = !isProtocolMode; document.getElementById('protocolToggleBtn').classList.toggle('active', isProtocolMode); document.getElementById('dayBitmaskContainer').classList.toggle('active', isProtocolMode); }
+    function toggleDayBit(element) { element.classList.toggle('active'); }
+
+    async function submitCustomTask() {
+        const text = document.getElementById('customTaskInput').value;
+        if (text && text.trim() !== '') {
+            const newId = Date.now().toString();
+            let pattern = null;
+            if (isProtocolMode) {
+                pattern = [];
+                document.querySelectorAll('.day-bit-btn.active').forEach(btn => { pattern.push(parseInt(btn.getAttribute('data-day'))); });
+            }
+            if (!Array.isArray(dailyCustom)) dailyCustom = [];
+            dailyCustom.push({ id: newId, text, done: false, date: selectedDate.getTime(), repeatPattern: pattern });
+            renderDay();
+            closeTaskModal();
+            safeDbWrite({ type: 'insert', table: 'custom_operations', data: { id: newId, user_id: PROFILE_ID, task_text: text, is_done: false, target_date: selectedDate.getTime(), repeat_pattern: pattern } });
+        }
+    }
+
+    async function deleteCustomTask(id, event) {
+        event.stopPropagation();
+        let task = dailyCustom.find(t => t.id === id);
+        let msg = task && task.repeatPattern ? 'Destroy this entire recurring protocol permanently?' : 'Terminate this operation?';
+        if (confirm(msg)) {
+            dailyCustom = dailyCustom.filter(t => t.id !== id);
+            renderDay();
+            safeDbWrite({ type: 'delete', table: 'custom_operations', match: { id } });
+        }
+    }
+
+    function updateProgress(total, completed, isToday, totalAlgo, completedAlgo) {
+        const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
+        const offset = circumference - (percent / 100) * circumference;
+        circle.style.strokeDashoffset = offset;
+        const pctText = document.getElementById('percentText');
+        const coinText = document.getElementById('dailyCoins');
+        const pfBanner = document.getElementById('pullForwardBanner');
+        pctText.innerText = `${percent}%`;
+        coinText.innerText = `+${coinsEarnedToday} Coins`;
+        let ringColor = 'var(--text-main)';
+        if (percent === 100 && total > 0) ringColor = 'var(--gold)';
+        else if (percent >= 50) ringColor = 'var(--primary)';
+        else if (percent > 0) ringColor = '#FFB86B';
+        pctText.style.color = ringColor; circle.style.stroke = ringColor;
+        if (coinsEarnedToday > 0) { coinText.style.color = 'var(--gold)'; coinText.style.textShadow = '2px 2px 0px #111827'; }
+        else { coinText.style.color = '#111827'; coinText.style.textShadow = '2px 2px 0px var(--gold)'; }
+        const allComplete = percent === 100 && total > 0;
+        const hasFutureWork = _lastTimeline && activeTasks.some(task => { let spread = _lastTimeline.taskSpread ? _lastTimeline.taskSpread[task.id] : null; return spread && spread.slice(1).some(v => v > 0); });
+        if (isToday && allComplete && hasFutureWork) pfBanner.classList.add('active');
+        else pfBanner.classList.remove('active');
+    }
+
+    init();
+</script>
+
+</body>
+</html>

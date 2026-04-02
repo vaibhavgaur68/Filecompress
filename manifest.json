@@ -1,0 +1,20 @@
+{
+  "name": "FocusOS Matrix",
+  "short_name": "FocusOS",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#111827",
+  "theme_color": "#0e0600",
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "prefer_related_applications": false,
+  "categories": ["productivity", "education"],
+  "description": "FocusOS — Algorithmic study matrix with offline-first support"
+}
