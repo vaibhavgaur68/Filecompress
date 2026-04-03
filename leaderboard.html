@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+
+<html lang="en" data-theme="default">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FocusOS | Global Rankings</title>
+    <link rel="stylesheet" href="themes.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script>
+        try {
+            const userId = localStorage.getItem('fos_last_user_id');
+            if (userId) {
+                const rawProfile = localStorage.getItem('fos_idx_profile_' + userId);
+                if (rawProfile) {
+                    const profile = JSON.parse(rawProfile).data;
+                    if (profile && profile.current_theme)
+                        document.documentElement.setAttribute('data-theme', profile.current_theme);
+                }
+            }
+        } catch(e) {}
+    </script>
+
+<style>
+/* ── RESET & BASE ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    padding: 0 0 80px;
+    transition: background-color 0.3s;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ══════════════════════════════════════════════
+   COMMAND STRIP  (header + season + controls)
+══════════════════════════════════════════════ */
+.cmd-strip {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg-color);
+    border-bottom: 2px solid var(--text-main);
+    padding: 10px 16px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 4px 0 var(--text-main);
+}
+
+/* Row 1 — title + season tabs + live badge */
+.cmd-row1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cmd-title {
+    font-family: 'Anton', sans-serif;
+    font-size: 1.65rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    line-height: 1;
+    color: var(--text-main);
+    flex-shrink: 0;
+}
+
+.season-bar {
+    display: flex;
+    align-items: center;
+    background: var(--panel-bg);
+    border: 2px solid var(--text-main);
+    border-radius: 8px;
+    padding: 2px;
+    box-shadow: 3px 3px 0px var(--text-main);
+    flex-shrink: 0;
+}
+
+.season-tab {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    border-radius: 6px;
+    transition: all 0.12s;
+    white-space: nowrap;
+}
+.season-tab.active {
+    background: var(--text-main);
+    color: var(--bg-color);
+    font-weight: 900;
+}
+.season-tab:hover:not(.active) { color: var(--text-main); background: var(--bg-color); }
+
+.spacer { flex: 1; }
+
+/* Live badge */
+.live-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--panel-bg);
+    border: 2px solid var(--text-main);
+    border-radius: 50px;
+    padding: 5px 12px;
+    font-size: 0.6rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-family: 'Space Mono', monospace;
+    box-shadow: 2px 2px 0px var(--text-main);
+    cursor: default;
+    user-select: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.live-badge.syncing {
+    background: var(--primary);
+    border-color: var(--text-main);
+    color: #111827;
+    animation: badgeFlash 0.3s ease;
+}
+.live-badge.rt-error { border-color: #ef4444; box-shadow: 2px 2px 0px #ef4444; }
+@keyframes badgeFlash {
+    0%   { transform: scale(1);    }
+    45%  { transform: scale(1.06); }
+    100% { transform: scale(1);    }
+}
+.live-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #10b981;
+    flex-shrink: 0;
+    animation: livePulse 1.8s ease-in-out infinite;
+    transition: background 0.3s;
+}
+.live-dot.connecting { background: #f59e0b; animation: livePulse 0.7s ease-in-out infinite; }
+.live-dot.rt-error   { background: #ef4444; animation: none; }
+@keyframes livePulse {
+    0%, 100% { opacity: 1;   box-shadow: 0 0 0 0   rgba(16,185,129,0.5); }
+    50%      { opacity: 0.6; box-shadow: 0 0 0 4px rgba(16,185,129,0);   }
+}
+
+/* Row 2 — search + filters + rivals toggle */
+.cmd-row2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 10px;
+}
+
+.search-wrap {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+}
+.search-wrap > svg {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 13px; height: 13px;
+    stroke: var(--text-muted);
+    stroke-width: 2.5;
+    fill: none;
+    pointer-events: none;
+}
+.search-input {
+    width: 100%;
+    padding: 8px 10px 8px 32px;
+    background: var(--panel-bg);
+    border: 2px solid var(--text-main);
+    border-radius: 8px;
+    color: var(--text-main);
+    font-size: 0.78rem;
+    font-weight: 700;
+    outline: none;
+    box-shadow: 2px 2px 0px var(--text-main);
+    transition: box-shadow 0.15s, transform 0.15s;
+    font-family: 'Space Mono', monospace;
+}
+.search-input:focus {
+    box-shadow: 3px 3px 0px var(--primary);
+    transform: translate(-1px,-1px);
+}
+.search-input::placeholder { color: var(--text-muted); opacity: 0.7; }
+
+.filter-btn {
+    padding: 7px 12px;
+    background: var(--panel-bg);
+    border: 2px solid var(--text-main);
+    border-radius: 8px;
+    font-size: 0.6rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    cursor: pointer;
+    color: var(--text-main);
+    box-shadow: 2px 2px 0px var(--text-main);
+    transition: all 0.1s;
+    white-space: nowrap;
+    font-family: 'Space Mono', monospace;
+}
+.filter-btn.active {
+    background: var(--text-main);
+    color: var(--bg-color);
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0px var(--primary);
+}
+.filter-btn:active { transform: translate(2px, 2px); box-shadow: none; }
+
+/* Rivals toggle button */
+.rivals-toggle-btn {
+    padding: 7px 12px;
+    background: var(--panel-bg);
+    border: 2px solid var(--text-main);
+    border-radius: 8px;
+    font-size: 0.6rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    cursor: pointer;
+    color: var(--text-main);
+    box-shadow: 2px 2px 0px var(--text-main);
+    transition: all 0.15s;
+    white-space: nowrap;
+    font-family: 'Space Mono', monospace;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+}
+.rivals-toggle-btn.has-rival {
+    background: #ef4444;
+    color: #fff;
+    border-color: #ef4444;
+    box-shadow: 2px 2px 0px var(--text-main);
+    animation: rivalPulse 2s ease-in-out infinite;
+}
+@keyframes rivalPulse {
+    0%, 100% { box-shadow: 2px 2px 0px var(--text-main); }
+    50%       { box-shadow: 3px 3px 6px rgba(239,68,68,0.4); }
+}
+.rivals-toggle-btn.open {
+    background: var(--text-main);
+    color: var(--bg-color);
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0px var(--primary);
+}
+
+/* ══════════════════════════════════════════════
+   MY POSITION BANNER  (slim strip)
+══════════════════════════════════════════════ */
+.my-position-banner {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    background: var(--primary);
+    border-bottom: 2px solid var(--text-main);
+    padding: 7px 16px;
+    flex-shrink: 0;
+}
+.my-position-banner.visible { display: flex; }
+
+.my-pos-rank {
+    font-family: 'Anton', sans-serif;
+    font-size: 1.3rem;
+    color: #111827;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.my-pos-divider {
+    width: 2px; height: 28px;
+    background: rgba(17,24,39,0.25);
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+.my-pos-name {
+    font-size: 0.8rem; font-weight: 900;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    color: #111827;
+    flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.my-pos-sub {
+    font-size: 0.55rem; font-weight: 900;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: rgba(17,24,39,0.55);
+    white-space: nowrap;
+}
+.my-pos-xp {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.78rem; font-weight: 700;
+    color: #111827;
+    background: rgba(255,255,255,0.35);
+    border: 1.5px solid rgba(17,24,39,0.25);
+    border-radius: 6px;
+    padding: 4px 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════════
+   RIVALS DRAWER  (collapsible)
+══════════════════════════════════════════════ */
+.rivals-drawer {
+    background: var(--panel-bg);
+    border-bottom: 2px solid var(--text-main);
+    padding: 14px 16px;
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.1);
+    flex-shrink: 0;
+}
+.rivals-drawer.open { display: flex; }
+
+.rivals-drawer-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.rivals-drawer-icon { font-size: 1rem; }
+.rivals-drawer-heading {
+    font-family: 'Anton', sans-serif;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-main);
+    line-height: 1;
+}
+.rivals-drawer-sub {
+    font-size: 0.55rem; font-weight: 900;
+    text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--text-muted);
+    font-family: 'Space Mono', monospace;
+    margin-top: 2px;
+}
+
+/* Rival search row */
+.rival-search-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+.rival-search-wrap {
+    flex: 1;
+    position: relative;
+}
+.rival-search-wrap > svg {
+    position: absolute;
+    left: 10px; top: 50%;
+    transform: translateY(-50%);
+    width: 13px; height: 13px;
+    stroke: var(--text-muted);
+    stroke-width: 2.5;
+    fill: none;
+    pointer-events: none;
+    z-index: 1;
+}
+.rival-search-input {
+    width: 100%;
+    padding: 9px 12px 9px 32px;
+    background: var(--bg-color);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-main);
+    font-size: 0.8rem; font-weight: 700;
+    outline: none;
+    font-family: 'Space Mono', monospace;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.rival-search-input:focus {
+    border-color: var(--text-main);
+    box-shadow: 2px 2px 0px var(--text-main);
+}
+.rival-search-input:disabled { opacity: 0.65; cursor: not-allowed; }
+.rival-search-input::placeholder { color: var(--text-muted); opacity: 0.7; }
+
+/* Suggestions dropdown */
+.rival-suggestions {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0; right: 0;
+    background: var(--panel-bg);
+    border: 2px solid var(--text-main);
+    border-radius: 10px;
+    box-shadow: 4px 4px 0px var(--text-main);
+    overflow: hidden;
+    z-index: 300;
+    display: none;
+}
+.rival-suggestions.open { display: block; }
+.sugg-item {
+    padding: 9px 12px;
+    display: flex; align-items: center; gap: 9px;
+    cursor: pointer;
+    transition: background 0.1s;
+    border-bottom: 1px solid var(--border-color);
+}
+.sugg-item:last-child { border-bottom: none; }
+.sugg-item:hover { background: var(--bg-color); }
+.sugg-avatar {
+    width: 26px; height: 26px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 0.7rem;
+    flex-shrink: 0; text-transform: uppercase;
+}
+.sugg-name { font-weight: 900; font-size: 0.8rem; color: var(--text-main); }
+.sugg-meta {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.55rem; color: var(--text-muted); margin-top: 1px;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.sugg-xp {
+    margin-left: auto;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem; font-weight: 700;
+    color: var(--text-muted); white-space: nowrap;
+}
+
+/* Lock button */
+.lock-btn {
+    padding: 9px 14px;
+    background: var(--text-main); color: var(--bg-color);
+    border: 2px solid var(--text-main);
+    border-radius: 8px;
+    font-size: 0.6rem; font-weight: 900;
+    text-transform: uppercase; letter-spacing: 1px;
+    cursor: pointer;
+    box-shadow: 2px 2px 0px var(--primary);
+    transition: transform 0.1s, box-shadow 0.1s;
+    white-space: nowrap;
+    font-family: 'Space Mono', monospace;
+    flex-shrink: 0;
+}
+.lock-btn:hover:not(:disabled) { transform: translate(-1px,-1px); box-shadow: 3px 3px 0px var(--primary); }
+.lock-btn:active:not(:disabled) { transform: translate(1px,1px); box-shadow: none; }
+.lock-btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
+
+/* H2H Card — compact */
+.h2h-card {
+    border: 2px solid var(--text-main);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 3px 3px 0px var(--text-main);
+    animation: slideDown 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes slideDown {
+    from { transform: translateY(-6px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+.h2h-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+}
+.h2h-side {
+    padding: 12px 14px 10px;
+    background: var(--bg-color);
+}
+.h2h-rival-side { text-align: right; }
+.h2h-center {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 12px 14px;
+    background: var(--text-main);
+    gap: 2px; min-width: 80px;
+}
+.h2h-vs-label {
+    font-family: 'Anton', sans-serif;
+    font-size: 0.8rem; letter-spacing: 3px;
+    color: var(--bg-color); opacity: 0.55;
+}
+.h2h-gap-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 1rem; font-weight: 700; line-height: 1; white-space: nowrap;
+}
+.h2h-gap-status {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.48rem; font-weight: 900;
+    text-transform: uppercase; letter-spacing: 1.5px;
+}
+.gap-ahead  { color: #10b981; }
+.gap-behind { color: #ef4444; }
+.gap-equal  { color: #f59e0b; }
+
+.h2h-who {
+    font-size: 0.5rem; font-weight: 900; text-transform: uppercase;
+    letter-spacing: 2px; font-family: 'Space Mono', monospace;
+    color: var(--text-muted); margin-bottom: 3px;
+}
+.h2h-name {
+    font-weight: 900; font-size: 0.82rem;
+    text-transform: uppercase; letter-spacing: -0.2px;
+    color: var(--text-main); margin-bottom: 4px; word-break: break-word;
+}
+.h2h-xp-me    { font-family: 'Space Mono', monospace; font-size: 1.1rem; font-weight: 700; color: var(--primary); margin-bottom: 2px; }
+.h2h-xp-rival { font-family: 'Space Mono', monospace; font-size: 1.1rem; font-weight: 700; color: #ef4444; margin-bottom: 2px; }
+.h2h-tier-lbl {
+    font-size: 0.52rem; font-weight: 900;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-muted); font-family: 'Space Mono', monospace; margin-bottom: 7px;
+}
+.h2h-bar-bg {
+    height: 4px; background: var(--border-color);
+    border-radius: 3px; overflow: hidden;
+}
+.h2h-bar-fill-me    { height: 100%; border-radius: 3px; background: var(--primary); transition: width 0.6s cubic-bezier(0.175,0.885,0.32,1.275); }
+.h2h-bar-fill-rival { height: 100%; border-radius: 3px; background: #ef4444;        transition: width 0.6s cubic-bezier(0.175,0.885,0.32,1.275); }
+.h2h-rival-side .h2h-bar-bg { transform: scaleX(-1); }
+
+.h2h-footer {
+    padding: 7px 12px;
+    background: var(--panel-bg);
+    border-top: 2px solid var(--text-main);
+    display: flex; align-items: center; justify-content: flex-end;
+}
+.abort-btn {
+    padding: 4px 12px;
+    background: transparent; border: 2px solid #ef4444;
+    border-radius: 6px; font-size: 0.58rem; font-weight: 900;
+    text-transform: uppercase; letter-spacing: 1px;
+    cursor: pointer; color: #ef4444;
+    font-family: 'Space Mono', monospace;
+    transition: background 0.12s, color 0.12s;
+}
+.abort-btn:hover  { background: #ef4444; color: #fff; }
+.abort-btn:active { transform: translate(1px,1px); }
+
+.rival-placeholder {
+    padding: 10px;
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    text-align: center;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.58rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-muted);
+}
+
+/* ══════════════════════════════════════════════
+   SCROLLABLE CONTENT AREA
+══════════════════════════════════════════════ */
+.content-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ══════════════════════════════════════════════
+   PODIUM  (compact, horizontal strip)
+══════════════════════════════════════════════ */
+.podium-section { flex-shrink: 0; }
+
+.section-label {
+    font-size: 0.6rem; font-weight: 900;
+    text-transform: uppercase; letter-spacing: 2px;
+    color: var(--text-muted); margin-bottom: 10px;
+    font-family: 'Space Mono', monospace;
+    display: flex; align-items: center; justify-content: space-between;
+}
+
+.podium-row {
+    display: grid;
+    grid-template-columns: 1fr 1.1fr 1fr;
+    gap: 10px;
+    align-items: end;
+}
+
+.podium-card {
+    border: 2.5px solid var(--text-main);
+    border-radius: 14px;
+    padding: 12px 12px 10px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    animation: podiumRise 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+.podium-card:nth-child(1) { animation-delay: 0.15s; }
+.podium-card:nth-child(2) { animation-delay: 0s; }
+.podium-card:nth-child(3) { animation-delay: 0.3s; }
+@keyframes podiumRise {
+    from { transform: translateY(14px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+.podium-card:hover { transform: translate(-2px,-3px); }
+
+.podium-1 { background: linear-gradient(160deg, #FFD700 0%, #FFF176 40%, #F9A825 100%); box-shadow: 5px 5px 0px #111827; }
+.podium-2 { background: linear-gradient(160deg, #E8E8E8 0%, #ffffff 40%, #B0B0B0 100%); box-shadow: 4px 4px 0px #111827; }
+.podium-3 { background: linear-gradient(160deg, #CD7F32 0%, #FFCC80 40%, #A0522D 100%); box-shadow: 3px 3px 0px #111827; }
+.podium-1:hover { box-shadow: 8px 8px 0px #111827; }
+.podium-2:hover { box-shadow: 7px 7px 0px #111827; }
+.podium-3:hover { box-shadow: 6px 6px 0px #111827; }
+
+.podium-card::before {
+    content: '';
+    position: absolute; top: 0; left: -60%;
+    width: 50%; height: 100%;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.55), transparent);
+    transform: skewX(-20deg);
+    animation: shimmer 3.5s infinite;
+}
+@keyframes shimmer { 0% { left: -60%; } 18% { left: 120%; } 100% { left: 120%; } }
+
+.podium-medal { font-size: 1.5rem; line-height: 1; margin-bottom: 4px; display: block; position: relative; z-index: 1; }
+.podium-rank-num {
+    font-family: 'Anton', sans-serif;
+    font-size: 0.6rem; letter-spacing: 2px;
+    color: rgba(17,24,39,0.5); text-transform: uppercase;
+    margin-bottom: 3px; position: relative; z-index: 1;
+}
+.podium-name {
+    font-size: 0.78rem; font-weight: 900;
+    text-transform: uppercase; letter-spacing: -0.3px;
+    color: #111827; line-height: 1.2;
+    position: relative; z-index: 1; word-break: break-word;
+}
+.podium-2 .podium-name, .podium-3 .podium-name { font-size: 0.72rem; }
+.podium-rank-badge {
+    display: inline-block;
+    background: rgba(17,24,39,0.12);
+    border: 1px solid rgba(17,24,39,0.2);
+    border-radius: 4px; padding: 2px 6px;
+    font-size: 0.5rem; font-weight: 900;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: rgba(17,24,39,0.65); margin-top: 4px;
+    position: relative; z-index: 1;
+}
+.podium-xp {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem; font-weight: 700;
+    color: #111827; margin-top: 7px;
+    background: rgba(255,255,255,0.4);
+    border: 1.5px solid rgba(17,24,39,0.2);
+    border-radius: 6px; padding: 3px 8px;
+    display: inline-block; position: relative; z-index: 1;
+}
+.you-crown { position: absolute; top: 6px; right: 8px; font-size: 0.9rem; z-index: 2; }
+
+/* ══════════════════════════════════════════════
+   RANK LIST
+══════════════════════════════════════════════ */
+.list-section { flex: 1; }
+.list-count-badge {
+    background: var(--bg-color);
+    border: 2px solid var(--border-color);
+    border-radius: 50px; padding: 2px 8px;
+    font-size: 0.56rem; color: var(--text-muted);
+}
+.rank-list { display: flex; flex-direction: column; gap: 8px; }
+
+.rank-row {
+    background: var(--panel-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px; padding: 10px 14px;
+    display: flex; align-items: center; gap: 12px;
+    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+    animation: rowSlide 0.3s ease both;
+    cursor: default;
+}
+.rank-row:hover {
+    transform: translateX(3px);
+    border-color: var(--text-main);
+    box-shadow: 3px 0px 0px var(--primary);
+}
+.rank-row.is-me {
+    border: 2px solid var(--primary);
+    box-shadow: 3px 3px 0px var(--primary);
+}
+.rank-row.is-me:hover   { transform: translateX(3px); box-shadow: 5px 3px 0px var(--primary); }
+.rank-row.is-rival {
+    border: 2px solid #ef4444;
+    box-shadow: 3px 3px 0px #ef4444;
+}
+.rank-row.is-rival:hover { transform: translateX(3px); box-shadow: 5px 3px 0px #ef4444; }
+@keyframes rowSlide {
+    from { transform: translateX(-8px); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+}
+
+.rank-pos {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem; font-weight: 700;
+    color: var(--text-muted); width: 32px;
+    text-align: center; flex-shrink: 0;
+}
+.rank-row.is-me    .rank-pos { color: var(--primary); }
+.rank-row.is-rival .rank-pos { color: #ef4444; }
+
+.rank-avatar {
+    width: 34px; height: 34px; border-radius: 9px;
+    border: 2px solid var(--border-color);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 0.85rem;
+    flex-shrink: 0; text-transform: uppercase;
+    transition: border-color 0.15s;
+}
+.rank-row:hover        .rank-avatar { border-color: var(--text-main); }
+.rank-row.is-me        .rank-avatar { border-color: var(--primary); }
+.rank-row.is-rival     .rank-avatar { border-color: #ef4444; }
+
+.rank-name-block { flex: 1; min-width: 0; }
+.rank-name {
+    font-weight: 900; font-size: 0.85rem; letter-spacing: -0.2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    color: var(--text-main);
+}
+.rank-row.is-me    .rank-name { color: var(--primary); }
+.rank-row.is-rival .rank-name { color: #ef4444; }
+.rank-tier {
+    font-size: 0.55rem; font-weight: 900;
+    text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--text-muted); margin-top: 1px;
+}
+
+.rank-xp-block {
+    display: flex; flex-direction: column;
+    align-items: flex-end; gap: 4px;
+    min-width: 88px;
+}
+.rank-xp-val {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem; font-weight: 700;
+    color: var(--text-main); white-space: nowrap;
+}
+.rank-xp-bar-bg {
+    width: 70px; height: 4px;
+    background: var(--bg-color);
+    border: 1.5px solid var(--border-color);
+    border-radius: 3px; overflow: hidden;
+}
+.rank-xp-bar-fill {
+    height: 100%; border-radius: 2px;
+    background: var(--primary);
+    transition: width 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.rank-row.is-rival .rank-xp-bar-fill { background: #ef4444; }
+
+.you-chip {
+    background: var(--primary); color: #111827;
+    font-size: 0.5rem; font-weight: 900;
+    padding: 2px 6px; border-radius: 5px;
+    letter-spacing: 1px; border: 1.5px solid var(--text-main);
+    flex-shrink: 0; text-transform: uppercase;
+}
+.rival-chip {
+    background: #ef4444; color: #fff;
+    font-size: 0.5rem; font-weight: 900;
+    padding: 2px 6px; border-radius: 5px;
+    letter-spacing: 1px; border: 1.5px solid var(--text-main);
+    flex-shrink: 0; text-transform: uppercase;
+}
+
+/* ══════════════════════════════════════════════
+   STATES (skeleton / empty / error)
+══════════════════════════════════════════════ */
+.state-card {
+    background: var(--panel-bg);
+    border: 2px dashed var(--border-color);
+    border-radius: 14px; padding: 30px 20px;
+    text-align: center; font-weight: 900; font-size: 0.85rem;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-muted);
+}
+.state-card .state-icon { font-size: 1.6rem; margin-bottom: 10px; display: block; }
+
+.skeleton-row {
+    background: var(--panel-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px; padding: 10px 14px;
+    display: flex; align-items: center; gap: 12px;
+    overflow: hidden; position: relative;
+}
+.skeleton-row::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+    animation: skelPulse 1.4s infinite;
+}
+@keyframes skelPulse { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+.skel-block { background: var(--border-color); border-radius: 6px; opacity: 0.5; flex-shrink: 0; }
+.skel-circle { border-radius: 9px; }
+
+.no-result {
+    text-align: center; padding: 24px 20px;
+    color: var(--text-muted); font-weight: 900;
+    font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;
+}
+.xp-unit { font-size: 0.5rem; opacity: 0.6; margin-left: 2px; font-weight: 700; }
+
+/* ══════════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════════ */
+@media (max-width: 600px) {
+    .cmd-title { font-size: 1.3rem; }
+    .season-tab { padding: 4px 8px; font-size: 0.56rem; }
+    .podium-row { gap: 8px; }
+    .podium-name { font-size: 0.68rem; }
+    .podium-2 .podium-name, .podium-3 .podium-name { font-size: 0.64rem; }
+    .podium-xp { font-size: 0.64rem; padding: 2px 6px; }
+    .podium-medal { font-size: 1.2rem; }
+    .rank-row { padding: 9px 10px; gap: 8px; }
+    .rank-xp-block { min-width: 70px; }
+    .rank-xp-bar-bg { width: 50px; }
+    .rank-avatar { width: 30px; height: 30px; font-size: 0.75rem; }
+    .h2h-center { min-width: 64px; padding: 10px 8px; }
+    .h2h-side { padding: 10px 10px 8px; }
+    .h2h-xp-me, .h2h-xp-rival { font-size: 0.95rem; }
+    .my-pos-sub { display: none; }
+    .filter-btn { padding: 6px 8px; font-size: 0.55rem; }
+}
+@media (max-width: 380px) {
+    .podium-xp { font-size: 0.58rem; }
+    .h2h-gap-num { font-size: 0.85rem; }
+    .cmd-row1 { flex-wrap: wrap; }
+}
+</style>
+
+</head>
+<body>
+
+<!-- ══════════ COMMAND STRIP ══════════ -->
+
+<div class="cmd-strip">
+
+
+<!-- Row 1: Title · Season · Live Badge -->
+<div class="cmd-row1">
+    <h1 class="cmd-title">Leaderboard</h1>
+
+    <div class="season-bar">
+        <button class="season-tab active" id="tab-xp" onclick="setMetric('xp')">
+            🌐 All-Time
+        </button>
+        <button class="season-tab" id="tab-weekly_xp" onclick="setMetric('weekly_xp')">
+            ⚡ This Week
+        </button>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="live-badge" id="liveBadge">
+        <span class="live-dot" id="liveDot"></span>
+        <span id="liveText">Connecting…</span>
+    </div>
+</div>
+
+<!-- Row 2: Search · Filters · Rivals toggle -->
+<div class="cmd-row2">
+    <div class="search-wrap">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" class="search-input" id="searchInput" placeholder="find others…" oninput="filterList()">
+    </div>
+    <button class="filter-btn active" id="filterAll"    onclick="setFilter('all',    this)">All</button>
+    <button class="filter-btn"        id="filterTop10"  onclick="setFilter('top10',  this)">Top 10</button>
+    <button class="filter-btn"        id="filterNearMe" onclick="setFilter('nearme', this)">Near Me</button>
+    <button class="rivals-toggle-btn" id="rivalsToggleBtn" onclick="toggleRivalsDrawer()">🎯 Rivals</button>
+</div>
+
+
+</div>
+
+<!-- ══════════ MY POSITION BANNER ══════════ -->
+
+<div class="my-position-banner" id="myPositionBanner">
+    <div class="my-pos-rank" id="myPosRank">—</div>
+    <div class="my-pos-divider"></div>
+    <div class="my-pos-name" id="myPosName">—</div>
+    <div class="my-pos-sub" id="myPosSub">Your position</div>
+    <div class="spacer"></div>
+    <div class="my-pos-xp" id="myPosXp">0 XP</div>
+</div>
+
+<!-- ══════════ RIVALS DRAWER ══════════ -->
+
+<div class="rivals-drawer" id="rivalsDrawer">
+    <div class="rivals-drawer-header">
+        <span class="rivals-drawer-icon">🎯</span>
+        <div>
+            <div class="rivals-drawer-heading">Rivals Protocol</div>
+            <div class="rivals-drawer-sub">Lock onto an agent · Track their every move</div>
+        </div>
+    </div>
+
+
+<div class="rival-search-row">
+    <div class="rival-search-wrap">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input
+            type="text"
+            class="rival-search-input"
+            id="rivalSearchInput"
+            placeholder="Search agent to target…"
+            autocomplete="off"
+            oninput="onRivalSearch()"
+            onblur="scheduleCloseSugg()"
+            onfocus="onRivalSearch()"
+        >
+        <div class="rival-suggestions" id="rivalSuggestions"></div>
+    </div>
+    <button class="lock-btn" id="lockBtn" onclick="lockSelectedRival()" disabled>🎯 Lock</button>
+</div>
+
+<div id="h2hContainer"></div>
+<div class="rival-placeholder" id="rivalPlaceholder">No target locked — search and select an agent above</div>
+
+
+</div>
+
+<!-- ══════════ SCROLLABLE CONTENT AREA ══════════ -->
+
+<div class="content-area">
+
+
+<!-- PODIUM -->
+<div class="podium-section">
+    <div class="section-label">
+        <span id="podiumLabel">Top Operatives · All-Time</span>
+    </div>
+    <div class="podium-row" id="podiumRow">
+        <div class="skeleton-row" style="height:110px;border-radius:14px;"><div style="flex:1;"></div></div>
+        <div class="skeleton-row" style="height:128px;border-radius:14px;"><div style="flex:1;"></div></div>
+        <div class="skeleton-row" style="height:100px;border-radius:14px;"><div style="flex:1;"></div></div>
+    </div>
+</div>
+
+<!-- RANK LIST -->
+<div class="list-section">
+    <div class="section-label">
+        <span id="listHeading">Full Rankings</span>
+        <span class="list-count-badge" id="listCountBadge">Loading…</span>
+    </div>
+    <div class="rank-list" id="rankList">
+        <div class="skeleton-row">
+            <div class="skel-block" style="width:30px;height:14px;"></div>
+            <div class="skel-block skel-circle" style="width:34px;height:34px;"></div>
+            <div style="flex:1;"><div class="skel-block" style="width:52%;height:11px;margin-bottom:5px;"></div><div class="skel-block" style="width:32%;height:8px;"></div></div>
+            <div class="skel-block" style="width:72px;height:11px;"></div>
+        </div>
+        <div class="skeleton-row">
+            <div class="skel-block" style="width:30px;height:14px;"></div>
+            <div class="skel-block skel-circle" style="width:34px;height:34px;"></div>
+            <div style="flex:1;"><div class="skel-block" style="width:44%;height:11px;margin-bottom:5px;"></div><div class="skel-block" style="width:28%;height:8px;"></div></div>
+            <div class="skel-block" style="width:72px;height:11px;"></div>
+        </div>
+        <div class="skeleton-row">
+            <div class="skel-block" style="width:30px;height:14px;"></div>
+            <div class="skel-block skel-circle" style="width:34px;height:34px;"></div>
+            <div style="flex:1;"><div class="skel-block" style="width:60%;height:11px;margin-bottom:5px;"></div><div class="skel-block" style="width:38%;height:8px;"></div></div>
+            <div class="skel-block" style="width:72px;height:11px;"></div>
+        </div>
+    </div>
+</div>
+
+
+</div><!-- /content-area -->
+
+<script>
+// ── CONSTANTS ──────────────────────────────────────────────────────────────
+const SUPABASE_URL      = 'https://xyhswdekhebcdmiyxfbo.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5aHN3ZGVraGViY2RtaXl4ZmJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyODUwMjYsImV4cCI6MjA4ODg2MTAyNn0.En2BVpECn9hTTsdvJh62jgBc2b5J-uiCGk1BsufNs58';
+
+const RANK_TIERS = [
+    { min: 0,    title: 'Initiate'    },
+    { min: 100,  title: 'Adept'       },
+    { min: 300,  title: 'Architect'   },
+    { min: 700,  title: 'Oracle'      },
+    { min: 1500, title: 'Matrix Lord' },
+    { min: 3000, title: 'Grandmaster' }
+];
+
+const AVATAR_COLORS = [
+    ['#6ba4ed','#111827'], ['#ff6b81','#111827'], ['#10b981','#111827'],
+    ['#f59e0b','#111827'], ['#8a65e8','#111827'], ['#ec407a','#111827'],
+    ['#0ea5e9','#111827'], ['#f43f5e','#111827'], ['#14b8a6','#111827'],
+    ['#FFB86B','#111827']
+];
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let allProfiles    = [];
+let currentUserId  = localStorage.getItem('fos_last_user_id') || '';
+let activeFilter   = 'all';
+let activeMetric   = 'xp';
+let myRankIndex    = -1;
+let rivalProfile   = null;
+let selectedRivalId = null;
+let sb             = null;
+let realtimeCh     = null;
+let renderTimer    = null;
+let syncTimer      = null;
+let suggTimer      = null;
+let closeTimer     = null;
+let rivalsDrawerOpen = false;
+
+// ── THEME SYNC ─────────────────────────────────────────────────────────────
+window.addEventListener('message', (e) => {
+    if (e.data !== 'sync_bank') return;
+    try {
+        const uid = localStorage.getItem('fos_last_user_id');
+        const raw = localStorage.getItem('fos_idx_profile_' + uid);
+        if (raw) {
+            const p = JSON.parse(raw).data;
+            if (p?.current_theme)
+                document.documentElement.setAttribute('data-theme', p.current_theme);
+        }
+    } catch(_) {}
+});
+
+// ── HELPERS ────────────────────────────────────────────────────────────────
+function formatName(rawEmail) {
+    if (!rawEmail) return 'Unknown Agent';
+    let s = String(rawEmail).trim();
+    if (s.includes('@')) s = s.split('@')[0];
+    s = s.replace(/[._+\-]/g, ' ').replace(/[^a-zA-Z0-9 ]/g, '').trim();
+    if (!s) return 'Unknown Agent';
+    return s.split(/\s+/).filter(Boolean)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ');
+}
+
+function getRankTier(xp) {
+    let tier = RANK_TIERS[0];
+    for (const t of RANK_TIERS) { if ((xp || 0) >= t.min) tier = t; }
+    return tier.title;
+}
+
+function avatarColor(name) {
+    let h = 0;
+    for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffffff;
+    return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+}
+
+function medalEmoji(r) { return r === 1 ? '🥇' : r === 2 ? '🥈' : '🥉'; }
+function metricKey()   { return activeMetric; }
+function metricUnit()  { return activeMetric === 'weekly_xp' ? 'WK XP' : 'XP'; }
+function getVal(p)     { return (p && p[activeMetric]) ? p[activeMetric] : 0; }
+
+// ── RIVALS DRAWER TOGGLE ──────────────────────────────────────────────────
+function toggleRivalsDrawer() {
+    rivalsDrawerOpen = !rivalsDrawerOpen;
+    const drawer = document.getElementById('rivalsDrawer');
+    const btn    = document.getElementById('rivalsToggleBtn');
+    drawer.classList.toggle('open', rivalsDrawerOpen);
+    btn.classList.toggle('open', rivalsDrawerOpen);
+}
+
+function updateRivalsToggleBtn() {
+    const btn = document.getElementById('rivalsToggleBtn');
+    if (rivalProfile) {
+        btn.classList.add('has-rival');
+        btn.textContent = '🎯 ' + formatName(rivalProfile.email).split(' ')[0];
+    } else {
+        btn.classList.remove('has-rival');
+        btn.textContent = '🎯 Rivals';
+    }
+}
+
+// ── LIVE SYNC UI ──────────────────────────────────────────────────────────
+function setSyncStatus(status) {
+    const badge = document.getElementById('liveBadge');
+    const dot   = document.getElementById('liveDot');
+    const text  = document.getElementById('liveText');
+    dot.className = 'live-dot';
+    badge.className = 'live-badge';
+    if (status === 'SUBSCRIBED') {
+        text.textContent = 'Live Sync';
+    } else if (status === 'CONNECTING' || status === 'CHANNEL_ERROR') {
+        dot.classList.add('connecting');
+        text.textContent = status === 'CONNECTING' ? 'Connecting…' : 'Reconnecting…';
+    } else if (status === 'CLOSED' || status === 'TIMED_OUT') {
+        dot.classList.add('rt-error');
+        badge.classList.add('rt-error');
+        text.textContent = 'Offline';
+    }
+}
+
+function flashSync() {
+    const badge = document.getElementById('liveBadge');
+    const text  = document.getElementById('liveText');
+    badge.classList.add('syncing');
+    text.textContent = '⚡ Synced';
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => {
+        badge.classList.remove('syncing');
+        text.textContent = 'Live Sync';
+    }, 1400);
+}
+
+// ── REAL-TIME ──────────────────────────────────────────────────────────────
+function setupRealtime() {
+    if (!sb) return;
+    if (realtimeCh) { try { sb.removeChannel(realtimeCh); } catch(_){} }
+
+    realtimeCh = sb.channel('fos-lb-rt-v3')
+        .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'user_profile'
+        }, handleRTEvent)
+        .subscribe(setSyncStatus);
+}
+
+function handleRTEvent({ eventType, new: rec, old: oldRec }) {
+    if (eventType === 'INSERT' && rec) {
+        if (!allProfiles.find(p => p.id === rec.id)) {
+            allProfiles.push(normalise(rec));
+        }
+    } else if (eventType === 'UPDATE' && rec) {
+        const idx = allProfiles.findIndex(p => p.id === rec.id);
+        if (idx >= 0) {
+            Object.assign(allProfiles[idx], normalise(rec));
+            if (rivalProfile && rec.id === rivalProfile.id) {
+                Object.assign(rivalProfile, normalise(rec));
+            }
+        } else {
+            allProfiles.push(normalise(rec));
+        }
+    } else if (eventType === 'DELETE' && oldRec) {
+        const idx = allProfiles.findIndex(p => p.id === oldRec.id);
+        if (idx >= 0) allProfiles.splice(idx, 1);
+    }
+
+    clearTimeout(renderTimer);
+    renderTimer = setTimeout(sortAndRender, 120);
+    flashSync();
+}
+
+function normalise(rec) {
+    return {
+        id:        rec.id,
+        email:     rec.email     || '',
+        xp:        rec.xp        || 0,
+        weekly_xp: rec.weekly_xp || 0,
+        rival:     rec.rival     || null
+    };
+}
+
+// ── SORT & RENDER ORCHESTRATOR ─────────────────────────────────────────────
+function sortAndRender() {
+    allProfiles.sort((a, b) => getVal(b) - getVal(a));
+    myRankIndex = allProfiles.findIndex(p => p.id === currentUserId);
+
+    if (myRankIndex >= 0) renderMyBanner(allProfiles[myRankIndex], myRankIndex + 1);
+
+    renderPodium(allProfiles.slice(0, 3));
+    renderList(getFilteredProfiles());
+    renderRivals();
+    updateRivalsToggleBtn();
+}
+
+// ── SEASON TOGGLE ──────────────────────────────────────────────────────────
+function setMetric(metric) {
+    activeMetric = metric;
+    document.querySelectorAll('.season-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + metric).classList.add('active');
+
+    const isWeek = metric === 'weekly_xp';
+    document.getElementById('podiumLabel').textContent =
+        isWeek ? 'Top Operatives · This Week' : 'Top Operatives · All-Time';
+    document.getElementById('listHeading').textContent =
+        isWeek ? 'Season Rankings' : 'Full Rankings';
+
+    sortAndRender();
+}
+
+// ── FILTER / SEARCH ────────────────────────────────────────────────────────
+function setFilter(mode, el) {
+    activeFilter = mode;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    renderList(getFilteredProfiles());
+}
+
+function filterList() { renderList(getFilteredProfiles()); }
+
+function getFilteredProfiles() {
+    const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+    let result = [...allProfiles];
+
+    if (activeFilter === 'top10')  result = result.slice(0, 10);
+    else if (activeFilter === 'nearme' && myRankIndex >= 0) {
+        const lo = Math.max(0, myRankIndex - 4);
+        const hi = Math.min(result.length, myRankIndex + 5);
+        result = result.slice(lo, hi);
+    }
+
+    if (q) result = result.filter(p => formatName(p.email).toLowerCase().includes(q));
+    return result;
+}
+
+// ── RENDER: PODIUM ─────────────────────────────────────────────────────────
+function renderPodium(profiles) {
+    const row = document.getElementById('podiumRow');
+    const slots = [
+        { data: profiles[1], rank: 2, cls: 'podium-2' },
+        { data: profiles[0], rank: 1, cls: 'podium-1' },
+        { data: profiles[2], rank: 3, cls: 'podium-3' }
+    ];
+    row.innerHTML = slots.map(slot => {
+        if (!slot.data) {
+            return `<div class="${slot.cls} podium-card" style="opacity:0.3;">
+                <span class="podium-medal">—</span><div class="podium-name">Empty</div>
+            </div>`;
+        }
+        const name  = formatName(slot.data.email);
+        const xp    = getVal(slot.data);
+        const tier  = getRankTier(slot.data.xp);
+        const isMe  = slot.data.id === currentUserId;
+        const unit  = metricUnit();
+        return `<div class="${slot.cls} podium-card">
+            ${isMe ? `<span class="you-crown">⭐</span>` : ''}
+            <span class="podium-medal">${medalEmoji(slot.rank)}</span>
+            <div class="podium-rank-num">#${slot.rank}</div>
+            <div class="podium-name">${name}${isMe ? '<br><span style="font-size:0.5rem;opacity:0.7;">YOU</span>' : ''}</div>
+            <div class="podium-rank-badge">${tier}</div>
+            <div class="podium-xp">${xp.toLocaleString()}<span class="xp-unit">${unit}</span></div>
+        </div>`;
+    }).join('');
+}
+
+// ── RENDER: RANK LIST ──────────────────────────────────────────────────────
+function renderList(profiles) {
+    const list  = document.getElementById('rankList');
+    const badge = document.getElementById('listCountBadge');
+    badge.textContent = `${profiles.length} Agents`;
+
+    if (profiles.length === 0) {
+        list.innerHTML = `<div class="no-result">No agents match your search.</div>`;
+        return;
+    }
+
+    const maxXp   = Math.max(1, ...allProfiles.map(p => getVal(p)));
+    const unit    = metricUnit();
+    const rivalId = rivalProfile ? rivalProfile.id : null;
+
+    list.innerHTML = profiles.map((p, idx) => {
+        const globalRank = allProfiles.findIndex(ap => ap.id === p.id) + 1;
+        const name       = formatName(p.email);
+        const xp         = getVal(p);
+        const tier       = getRankTier(p.xp);
+        const isMe       = p.id === currentUserId;
+        const isRiv      = p.id === rivalId;
+        const [bg, fg]   = avatarColor(name);
+        const barPct     = Math.max(4, Math.round((xp / maxXp) * 100));
+        const delay      = Math.min(idx * 0.04, 0.5);
+
+        return `<div class="rank-row${isMe ? ' is-me' : ''}${isRiv ? ' is-rival' : ''}" style="animation-delay:${delay}s;">
+            <div class="rank-pos">#${String(globalRank).padStart(2, '0')}</div>
+            <div class="rank-avatar" style="background:${bg};color:${fg};">${name.charAt(0)}</div>
+            <div class="rank-name-block">
+                <div class="rank-name">${name}</div>
+                <div class="rank-tier">${tier}</div>
+            </div>
+            ${isMe  ? `<span class="you-chip">You</span>`        : ''}
+            ${isRiv ? `<span class="rival-chip">🎯 Target</span>` : ''}
+            <div class="rank-xp-block">
+                <div class="rank-xp-val">${xp.toLocaleString()}<span class="xp-unit">${unit}</span></div>
+                <div class="rank-xp-bar-bg">
+                    <div class="rank-xp-bar-fill" style="width:${barPct}%;"></div>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ── RENDER: MY BANNER ──────────────────────────────────────────────────────
+function renderMyBanner(profile, rankNum) {
+    if (!profile) return;
+    const name = formatName(profile.email);
+    const xp   = getVal(profile);
+    const tier = getRankTier(profile.xp);
+    const unit = metricUnit();
+    document.getElementById('myPosRank').textContent = `#${rankNum}`;
+    document.getElementById('myPosName').textContent = name;
+    document.getElementById('myPosSub').textContent  = `${tier} · ${xp.toLocaleString()} ${unit}`;
+    document.getElementById('myPosXp').textContent   = `${xp.toLocaleString()} ${unit}`;
+    document.getElementById('myPositionBanner').classList.add('visible');
+}
+
+// ── RIVALS: SEARCH ─────────────────────────────────────────────────────────
+function onRivalSearch() {
+    clearTimeout(suggTimer);
+    suggTimer = setTimeout(() => {
+        const q    = (document.getElementById('rivalSearchInput').value || '').trim().toLowerCase();
+        const wrap = document.getElementById('rivalSuggestions');
+
+        if (!q) { wrap.classList.remove('open'); return; }
+
+        const unit    = metricUnit();
+        const matches = allProfiles
+            .filter(p => p.id !== currentUserId && formatName(p.email).toLowerCase().includes(q))
+            .slice(0, 6);
+
+        if (!matches.length) {
+            wrap.innerHTML = `<div class="sugg-item"><div class="sugg-name" style="color:var(--text-muted);">No agents found</div></div>`;
+            wrap.classList.add('open');
+            return;
+        }
+
+        wrap.innerHTML = matches.map(p => {
+            const name = formatName(p.email);
+            const xp   = getVal(p);
+            const rank = allProfiles.findIndex(ap => ap.id === p.id) + 1;
+            const tier = getRankTier(p.xp);
+            const [bg, fg] = avatarColor(name);
+            return `<div class="sugg-item" onclick="pickRival('${p.id}', '${name.replace(/'/g, "\\'")}')">
+                <div class="sugg-avatar" style="background:${bg};color:${fg};">${name.charAt(0)}</div>
+                <div>
+                    <div class="sugg-name">${name}</div>
+                    <div class="sugg-meta">#${rank} · ${tier}</div>
+                </div>
+                <div class="sugg-xp">${xp.toLocaleString()} ${unit}</div>
+            </div>`;
+        }).join('');
+        wrap.classList.add('open');
+    }, 80);
+}
+
+function pickRival(id, name) {
+    selectedRivalId = id;
+    document.getElementById('rivalSearchInput').value = name;
+    document.getElementById('rivalSuggestions').classList.remove('open');
+    document.getElementById('lockBtn').disabled = false;
+}
+
+function scheduleCloseSugg() {
+    clearTimeout(closeTimer);
+    closeTimer = setTimeout(() => {
+        document.getElementById('rivalSuggestions').classList.remove('open');
+    }, 200);
+}
+
+// ── RIVALS: LOCK ───────────────────────────────────────────────────────────
+async function lockSelectedRival() {
+    if (!selectedRivalId || !sb) return;
+
+    const btn = document.getElementById('lockBtn');
+    btn.disabled = true;
+    btn.textContent = 'Locking…';
+
+    try {
+        if (currentUserId) {
+            const { error } = await sb
+                .from('user_profile')
+                .update({ rival: selectedRivalId })
+                .eq('id', currentUserId);
+            if (error) throw error;
+            const myP = allProfiles.find(p => p.id === currentUserId);
+            if (myP) myP.rival = selectedRivalId;
+        }
+        rivalProfile = allProfiles.find(p => p.id === selectedRivalId) || null;
+        renderRivals();
+        renderList(getFilteredProfiles());
+        updateRivalsToggleBtn();
+    } catch (err) {
+        console.error('Lock rival failed:', err);
+        btn.textContent = '⚠ Retry';
+        btn.disabled = false;
+    }
+}
+
+// ── RIVALS: CLEAR ──────────────────────────────────────────────────────────
+async function clearRival() {
+    try {
+        if (currentUserId && sb) {
+            const { error } = await sb
+                .from('user_profile')
+                .update({ rival: null })
+                .eq('id', currentUserId);
+            if (error) throw error;
+            const myP = allProfiles.find(p => p.id === currentUserId);
+            if (myP) myP.rival = null;
+        }
+    } catch (err) {
+        console.error('Clear rival failed:', err);
+    }
+    rivalProfile    = null;
+    selectedRivalId = null;
+    document.getElementById('rivalSearchInput').value    = '';
+    document.getElementById('rivalSearchInput').disabled = false;
+    document.getElementById('lockBtn').textContent       = '🎯 Lock';
+    document.getElementById('lockBtn').disabled          = true;
+    renderRivals();
+    renderList(getFilteredProfiles());
+    updateRivalsToggleBtn();
+}
+
+// ── RIVALS: RENDER H2H ─────────────────────────────────────────────────────
+function renderRivals() {
+    const container   = document.getElementById('h2hContainer');
+    const placeholder = document.getElementById('rivalPlaceholder');
+    const inp         = document.getElementById('rivalSearchInput');
+    const lockBtn     = document.getElementById('lockBtn');
+
+    if (!rivalProfile) {
+        container.innerHTML        = '';
+        placeholder.style.display  = '';
+        inp.disabled               = false;
+        lockBtn.disabled           = !selectedRivalId;
+        lockBtn.textContent        = '🎯 Lock';
+        return;
+    }
+
+    placeholder.style.display = 'none';
+    inp.value                  = formatName(rivalProfile.email);
+    inp.disabled               = true;
+    lockBtn.disabled           = true;
+
+    const myP   = allProfiles.find(p => p.id === currentUserId);
+    const myXp  = myP  ? getVal(myP)  : 0;
+    const rivXp = getVal(rivalProfile);
+    const gap   = Math.abs(myXp - rivXp);
+    const unit  = metricUnit();
+
+    const ahead = myXp > rivXp;
+    const equal = myXp === rivXp;
+
+    let gapClass  = 'gap-equal';
+    let gapPrefix = '=';
+    let gapStatus = 'EQUAL';
+    if (!equal) {
+        if (ahead) { gapClass = 'gap-ahead';  gapPrefix = '+'; gapStatus = 'AHEAD'; }
+        else       { gapClass = 'gap-behind'; gapPrefix = '−'; gapStatus = 'BEHIND'; }
+    }
+
+    const myName  = myP ? formatName(myP.email) : 'You';
+    const rivName = formatName(rivalProfile.email);
+    const maxXp   = Math.max(myXp, rivXp, 1);
+    const myPct   = Math.max(4, Math.round((myXp  / maxXp) * 100));
+    const rivPct  = Math.max(4, Math.round((rivXp / maxXp) * 100));
+
+    container.innerHTML = `
+    <div class="h2h-card">
+        <div class="h2h-grid">
+            <div class="h2h-side">
+                <div class="h2h-who">⭐ You</div>
+                <div class="h2h-name">${myName}</div>
+                <div class="h2h-xp-me">${myXp.toLocaleString()}</div>
+                <div class="h2h-tier-lbl">${getRankTier(myP?.xp || 0)} · ${unit}</div>
+                <div class="h2h-bar-bg">
+                    <div class="h2h-bar-fill-me" style="width:${myPct}%;"></div>
+                </div>
+            </div>
+            <div class="h2h-center">
+                <div class="h2h-vs-label">VS</div>
+                <div class="h2h-gap-num ${gapClass}">${equal ? '=' : gapPrefix + gap.toLocaleString()}</div>
+                <div class="h2h-gap-status ${gapClass}">${gapStatus}</div>
+            </div>
+            <div class="h2h-side h2h-rival-side">
+                <div class="h2h-who" style="text-align:right;">🎯 Target</div>
+                <div class="h2h-name">${rivName}</div>
+                <div class="h2h-xp-rival">${rivXp.toLocaleString()}</div>
+                <div class="h2h-tier-lbl">${getRankTier(rivalProfile.xp || 0)} · ${unit}</div>
+                <div class="h2h-bar-bg">
+                    <div class="h2h-bar-fill-rival" style="width:${rivPct}%;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="h2h-footer">
+            <button class="abort-btn" onclick="clearRival()">✕ Abort Target</button>
+        </div>
+    </div>`;
+}
+
+// ── LOAD DATA ──────────────────────────────────────────────────────────────
+async function loadLeaderboard() {
+    if (!navigator.onLine) {
+        document.getElementById('podiumRow').innerHTML =
+            `<div class="state-card" style="grid-column:1/-1;"><span class="state-icon">⚡</span>Offline — live rankings unavailable</div>`;
+        document.getElementById('rankList').innerHTML = '';
+        return;
+    }
+
+    try {
+        sb = window.parent?.supabaseClient
+            || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const { data, error } = await sb
+            .from('user_profile')
+            .select('id, email, xp, weekly_xp, rival')
+            .order('xp', { ascending: false });
+
+        if (error) throw error;
+
+        allProfiles = (data || [])
+            .filter(p => (p.xp || 0) >= 0)
+            .map(normalise);
+
+        if (!allProfiles.length) {
+            document.getElementById('podiumRow').innerHTML =
+                `<div class="state-card" style="grid-column:1/-1;"><span class="state-icon">🔍</span>No agents found.</div>`;
+            document.getElementById('rankList').innerHTML = '';
+            return;
+        }
+
+        // Detect saved rival for current user
+        if (currentUserId) {
+            const myP = allProfiles.find(p => p.id === currentUserId);
+            if (myP?.rival) {
+                rivalProfile = allProfiles.find(p => p.id === myP.rival) || null;
+                if (rivalProfile) {
+                    document.getElementById('rivalSearchInput').value    = formatName(rivalProfile.email);
+                    document.getElementById('rivalSearchInput').disabled = true;
+                    document.getElementById('lockBtn').disabled          = true;
+                }
+            }
+        }
+
+        sortAndRender();
+        setupRealtime();
+
+    } catch (err) {
+        console.error('Leaderboard error:', err);
+        document.getElementById('podiumRow').innerHTML =
+            `<div class="state-card" style="grid-column:1/-1;"><span class="state-icon">⚠️</span>${err.message}</div>`;
+        document.getElementById('rankList').innerHTML = '';
+        setSyncStatus('CLOSED');
+    }
+}
+
+loadLeaderboard();
+</script>
+
+</body>
+</html>
