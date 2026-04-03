@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="default">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FocusOS | The Matrix</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="logo.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="stylesheet" href="themes.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; transition: background-color 0.6s ease; }
+
+        /* ── LOADING SCREEN ── */
+        #bootScreen {
+            position: fixed; inset: 0; background: var(--bg-color);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 9999; gap: 20px; transition: opacity 0.4s ease;
+        }
+        #bootScreen.hidden { opacity: 0; pointer-events: none; }
+        .boot-logo { font-size: 2rem; font-weight: 900; letter-spacing: -1px; text-transform: uppercase; color: var(--text-main); }
+        .boot-bar { width: 200px; height: 6px; background: var(--border-color); border-radius: 50px; overflow: hidden; border: 2px solid var(--text-main); }
+        .boot-bar-fill { height: 100%; background: var(--primary); border-radius: 50px; animation: bootPulse 1.2s ease-in-out infinite; }
+        @keyframes bootPulse { 0%,100% { width: 20%; margin-left: 0; } 50% { width: 60%; margin-left: 20%; } }
+        .boot-status { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; color: var(--text-muted); }
+
+        body.ghost-active { background-color: #000000 !important; }
+
+        /* ── FIXED SIDEBAR ── */
+        .sidebar { position: fixed; top: 0; left: 0; width: 70px; height: 100vh; background: var(--panel-bg); border-right: 3px solid var(--text-main); display: flex; flex-direction: column; align-items: center; padding: 20px 0; z-index: 999; box-shadow: 10px 0 30px rgba(0,0,0,0.1); }
+        
+        /* ── CIRCULAR LEVEL WIDGET ── */
+        .circular-level-widget {
+            position: relative; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-bottom: 10px; cursor: pointer;
+        }
+        .level-progress-ring { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+        .ring-bg { fill: none; stroke: var(--border-color); stroke-width: 4; }
+        .ring-fill { fill: none; stroke: var(--primary); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 163.36; stroke-dashoffset: 163.36; transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+        .level-info { display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1; transform: translateY(1px); }
+        .level-text { font-size: 0.95rem; font-weight: 900; color: var(--text-main); line-height: 1; letter-spacing: -0.5px; }
+        .xp-pill { background: var(--bg-color); color: var(--text-main); font-size: 0.45rem; font-weight: 900; padding: 2px 5px; border-radius: 8px; margin-top: 3px; text-transform: uppercase; border: 1px solid var(--text-main); box-shadow: 1px 1px 0px var(--text-main); }
+        
+        .offline-status-bar { display: none; background: #FFE873; color: #111827; border-radius: 50%; width: 24px; height: 24px; font-size: 0.8rem; line-height: 24px; text-align: center; margin-bottom: 15px; border: 2px solid #111827; }
+        body.is-offline .offline-status-bar { display: block; }
+
+        .nav-links { display: flex; flex-direction: column; gap: 15px; width: 100%; align-items: center; flex: 1; }
+        .nav-item { width: 44px; height: 44px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-muted); transition: all 0.1s; border: 2px solid transparent; }
+        .nav-item svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 3; fill: none; }
+        .nav-item:hover { color: var(--text-main); background: var(--bg-color); transform: translateY(-3px); }
+        .nav-item.active { color: var(--bg-color); background: var(--text-main); border-color: var(--text-main); box-shadow: 3px 3px 0px var(--primary); }
+
+        .logout-btn { background: none; border: none; color: var(--danger); cursor: pointer; display: flex; align-items: center; justify-content: center; margin-top: auto; width: 44px; height: 44px; transition: transform 0.1s; }
+        .logout-btn:hover { transform: translateY(-3px); }
+        .logout-btn svg { width: 24px; height: 24px; stroke-width: 3; }
+
+        /* ── MAIN CONTENT AREA ── */
+        .content-area { flex: 1; height: 100vh; position: relative; background: transparent; padding-left: 70px; overflow-y: auto; -webkit-overflow-scrolling: touch; z-index: 1; }
+        .content-area::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); opacity: 0; pointer-events: none; transition: opacity 0.3s ease; z-index: 10; backdrop-filter: blur(4px); }
+        body.dim-gap .content-area::before { opacity: 1; pointer-events: all; }
+        #appFrame { position: relative; z-index: 2; width: 100%; height: 100%; border: none; display: block; background: transparent; }
+
+        /* ── OVERLAYS & PANELS ── */
+        .panel-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s; backdrop-filter: blur(4px); }
+        .panel-overlay.active { opacity: 1; pointer-events: all; }
+        .side-panel-drawer { position: fixed; top: 0; right: 0; transform: translateX(100%); width: 420px; max-width: 100vw; height: 100vh; background: var(--panel-bg); border-left: 3px solid var(--text-main); z-index: 1001; box-shadow: -10px 0 30px rgba(0,0,0,0.2); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; flex-direction: column; }
+        .side-panel-drawer.active { transform: translateX(0); }
+        
+        /* ── PANEL HEADER (CLEAN & COMPACT) ── */
+        .panel-header { padding: 16px 20px; border-bottom: 2px solid var(--text-main); background: var(--bg-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;}
+        .panel-title { display: flex; flex-direction: column; justify-content: center; }
+        .panel-title h2 { font-size: 1.1rem; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px; line-height: 1; color: var(--text-main); }
+        .panel-title p { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-top: 4px; display: flex; align-items: center; gap: 4px; text-transform: uppercase; }
+        .panel-title p .highlight { color: var(--gold); font-weight: 900; } 
+        
+        .close-btn { background: transparent; border: none; cursor: pointer; color: var(--text-main); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; transition: background 0.1s, transform 0.1s; border-radius: 8px; }
+        .close-btn:hover { background: rgba(0,0,0,0.05); }
+        .close-btn:active { transform: scale(0.9); }
+        .close-btn svg { width: 22px; height: 22px; stroke-width: 2.5; }
+
+        /* ── CONFIG LIST LAYOUT ── */
+        .panel-body { padding: 25px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px; }
+        .config-group { background: var(--bg-color); border: 3px solid var(--text-main); border-radius: 12px; box-shadow: 4px 4px 0px var(--text-main); overflow: hidden; display: flex; flex-direction: column; }
+        .config-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 2px solid var(--text-main); }
+        .config-row:last-child { border-bottom: none; }
+        .config-label { font-size: 0.8rem; font-weight: 900; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.5px; }
+        .config-input { width: 80px; padding: 8px 10px; border: 2px solid var(--text-main); border-radius: 8px; font-weight: 900; font-size: 0.9rem; text-align: center; background: var(--panel-bg); color: var(--text-main); outline: none; transition: box-shadow 0.1s; }
+        .config-input:focus { box-shadow: 2px 2px 0px var(--primary); }
+        
+        .danger-label { color: var(--danger); }
+        .danger-input { border-color: var(--danger); color: var(--danger); }
+
+        .action-btn { width: 100%; padding: 16px; background: var(--primary); color: #111827; border: 3px solid var(--text-main); border-radius: 12px; font-weight: 900; text-transform: uppercase; font-size: 0.95rem; cursor: pointer; box-shadow: 4px 4px 0px var(--text-main); transition: all 0.1s; letter-spacing: 1px;}
+        .action-btn:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px transparent; }
+
+        /* ── SHOP LIST LAYOUT ── */
+        .shop-list { display: flex; flex-direction: column; gap: 15px; }
+        .shop-list-item { display: flex; justify-content: space-between; align-items: center; padding: 16px; background: var(--bg-color); border: 3px solid var(--text-main); border-radius: 12px; box-shadow: 4px 4px 0px var(--text-main); transition: transform 0.1s, box-shadow 0.1s; }
+        .shop-list-item:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0px var(--text-main); }
+        .item-details { flex: 1; padding-right: 15px; }
+        .item-details h3 { font-size: 1rem; font-weight: 900; text-transform: uppercase; letter-spacing: -0.5px; color: var(--text-main); margin-bottom: 4px; }
+        .item-details p { font-size: 0.75rem; font-weight: 800; color: var(--text-muted); line-height: 1.3; }
+        .item-action { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+        .item-price { font-size: 0.75rem; font-weight: 900; color: var(--gold); text-transform: uppercase; }
+        
+        .buy-btn { padding: 10px 18px; background: var(--primary); color: #111827; border: 2px solid var(--text-main); border-radius: 8px; font-weight: 900; font-size: 0.8rem; text-transform: uppercase; cursor: pointer; box-shadow: 2px 2px 0px var(--text-main); transition: all 0.1s; white-space: nowrap;}
+        .buy-btn:active { transform: translate(2px, 2px); box-shadow: 0px 0px 0px transparent; }
+        .buy-btn.owned { background: var(--panel-bg); color: var(--text-main); }
+        .buy-btn.equipped { background: var(--text-main); color: var(--bg-color); box-shadow: 2px 2px 0px var(--success); border-color: var(--success); }
+        
+        /* ── TOAST NOTIFICATIONS ── */
+        .hud-toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-150%); background: var(--panel-bg); border: 3px solid var(--text-main); box-shadow: 6px 6px 0px var(--text-main); color: var(--text-main); padding: 12px 20px; border-radius: 16px; z-index: 10000; display: flex; align-items: center; gap: 15px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; font-size: 0.85rem; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); pointer-events: none; max-width: 90vw; text-align: center; }
+        .hud-toast-container.active { transform: translateX(-50%) translateY(0); }
+        .hud-icon { background: var(--primary); color: #111827; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 2px solid var(--text-main); flex-shrink: 0; }
+        .hud-icon svg { width: 16px; height: 16px; stroke-width: 3; }
+
+        @media (max-width: 900px) {
+            body { flex-direction: column; height: 100dvh; }
+            .sidebar { position: fixed; top: auto; bottom: 0; left: 0; width: 100%; height: 60px; flex-direction: row; padding: 0 10px; border-right: none; border-top: 3px solid var(--text-main); border-radius: 0; align-items: center; justify-content: space-between; box-shadow: 0px -4px 15px rgba(0,0,0,0.1); }
+            .offline-status-bar { display: none !important; }
+            .nav-links { flex-direction: row; width: auto; justify-content: center; gap: 15px; height: 100%; }
+            .nav-item { width: 40px; height: 40px; }
+            .logout-btn { margin: 0; width: 40px; height: 40px; }
+            .content-area { padding-left: 0 !important; padding-bottom: 60px !important; height: 100dvh !important; }
+            .side-panel-drawer { width: 100%; border-left: none; }
+            .circular-level-widget { width: 44px; height: 44px; margin-bottom: 0; }
+            .level-text { font-size: 0.75rem; }
+            .xp-pill { font-size: 0.35rem; padding: 1px 4px; margin-top: 1px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="bootScreen">
+    <div class="boot-logo">FocusOS</div>
+    <div class="boot-bar"><div class="boot-bar-fill"></div></div>
+    <div class="boot-status" id="bootStatus">Initializing Matrix...</div>
+</div>
+
+<nav class="sidebar" id="sidebar">
+    <div class="offline-status-bar" title="Offline Mode">⚡</div>
+    
+    <div class="nav-links">
+        <div class="circular-level-widget" id="navLevelWidget" onclick="loadModule('leaderboard.html', this)" title="Global Rankings">
+            <svg class="level-progress-ring" viewBox="0 0 60 60">
+                <circle class="ring-bg" cx="30" cy="30" r="26"></circle>
+                <circle class="ring-fill" id="navLevelRingFill" cx="30" cy="30" r="26"></circle>
+            </svg>
+            <div class="level-info">
+                <div class="level-text">Lv <span id="navLevelMobileNum">01</span></div>
+                <div class="xp-pill">Xp: <span id="navXpCurrentText">0</span></div>
+            </div>
+        </div>
+        <div class="nav-item active" onclick="loadModule('home.html', this)" title="Dashboard">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        </div>
+        <div class="nav-item" onclick="loadModule('planner.html', this)" title="Planner">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        </div>
+        <div class="nav-item" onclick="loadModule('habits.html', this)" title="Tasks">
+            <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+        </div>
+        <div class="nav-item" onclick="openConfigModal()" title="Config">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </div>
+    </div>
+
+    <button class="logout-btn" onclick="logout()" title="Logout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+    </button>
+</nav>
+
+<main class="content-area" id="mainContentArea">
+    <iframe id="appFrame" src="" allow="camera; microphone"></iframe>
+</main>
+
+<div class="panel-overlay" id="configOverlay" onclick="closeConfigModal()"></div>
+<div class="side-panel-drawer" id="configPanel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <h2>Engine Config</h2>
+            <p>Calibrate Matrix Physics</p>
+        </div>
+        <button class="close-btn" onclick="closeConfigModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+    </div>
+    <div class="panel-body">
+        <div class="config-group">
+            <div class="config-row">
+                <span class="config-label">Chapter CL Weight</span>
+                <input type="number" step="0.5" id="cfg_ch" class="config-input">
+            </div>
+            <div class="config-row">
+                <span class="config-label">Lecture CL Weight</span>
+                <input type="number" step="0.5" id="cfg_lec" class="config-input">
+            </div>
+            <div class="config-row">
+                <span class="config-label">MCQ CL Weight</span>
+                <input type="number" step="0.05" id="cfg_mcq" class="config-input">
+            </div>
+            <div class="config-row">
+                <span class="config-label">Custom Operation CL</span>
+                <input type="number" step="0.5" id="cfg_cus" class="config-input">
+            </div>
+        </div>
+        <div class="config-group">
+            <div class="config-row">
+                <span class="config-label danger-label">Max Daily Limit</span>
+                <input type="number" id="cfg_max" class="config-input danger-input">
+            </div>
+        </div>
+        <button class="action-btn" onclick="saveConfig()">Recalibrate Matrix</button>
+    </div>
+</div>
+
+<div class="panel-overlay" id="shopOverlay" onclick="closeShop()"></div>
+<div class="side-panel-drawer" id="shopPanel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <h2>Black Market</h2>
+            <p><span id="shopCoins" class="highlight">0</span> Available</p>
+        </div>
+        <button class="close-btn" onclick="closeShop()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+    </div>
+    <div class="panel-body">
+        <div class="shop-list" id="shopContent"></div>
+    </div>
+</div>
+
+<script>
+    // ── SERVICE WORKER ────────────────────────────────────────────────────
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').then(reg => {
+                if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+                reg.addEventListener('updatefound', () => {
+                    const nw = reg.installing;
+                    nw.addEventListener('statechange', () => {
+                        if (nw.state === 'installed' && navigator.serviceWorker.controller) nw.postMessage('SKIP_WAITING');
+                    });
+                });
+            }).catch(e => console.warn('[SW] Registration failed:', e));
+        });
+    }
+
+    // ── NETWORK ───────────────────────────────────────────────────────────
+    function updateNetworkStatus() {
+        if (!navigator.onLine) document.body.classList.add('is-offline');
+        else {
+            document.body.classList.remove('is-offline');
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller)
+                navigator.serviceWorker.controller.postMessage('CACHE_CDN');
+        }
+    }
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+    updateNetworkStatus();
+
+    const SUPABASE_URL = 'https://xyhswdekhebcdmiyxfbo.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_UsVbr-Rs8gDF-H9OdXKQEQ_qpv0Pf2m';
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let PROFILE_ID = null;
+    let USER_EMAIL = "";
+    let globalProfile = { xp: 0, coins: 0, current_theme: 'default', inventory: [] };
+    let hudTimeout = null;
+
+    const RANK_TIERS = [
+        { title: 'Initiate', xpNeeded: 100 }, { title: 'Adept', xpNeeded: 300 },
+        { title: 'Architect', xpNeeded: 700 }, { title: 'Oracle', xpNeeded: 1500 },
+        { title: 'Matrix Lord', xpNeeded: 3000 }
+    ];
+
+    const SHOP_ITEMS = {
+        themes: [
+            { id: 'default', name: 'Clean Slate', desc: 'The default FocusOS UI.', price: 0 },
+            { id: 'dark', name: 'Standard Dark', desc: 'Basic dark mode.', price: 0 },
+            { id: 'matcha', name: 'Matcha', desc: 'Soft earth tones.', price: 100 },
+            { id: 'midnight', name: 'Midnight', desc: 'Deep blue hues.', price: 100 },
+            { id: 'autumn', name: 'Autumn Amber', desc: 'Warm orange tones.', price: 200 },
+            { id: 'coffee', name: 'Coffee Roaster', desc: 'Premium cafe aesthetics.', price: 300 },
+            { id: 'cyberpunk', name: 'Cyberpunk', desc: 'High-contrast neon.', price: 500 },
+            { id: 'ocean', name: 'Deep Ocean', desc: 'Cyan & deep sea blues.', price: 500 },
+            { id: 'sakura', name: 'Zen Sakura', desc: 'Soft pastel pinks.', price: 800 }
+        ]
+    };
+
+    const LocalCache = {
+        set(key, data) { try { localStorage.setItem('fos_idx_' + key, JSON.stringify({ ts: Date.now(), data })); } catch(e) {} },
+        get(key) { try { const raw = localStorage.getItem('fos_idx_' + key); if (!raw) return null; return JSON.parse(raw).data; } catch(e) { return null; } }
+    };
+
+    function setBootStatus(msg) {
+        const el = document.getElementById('bootStatus');
+        if (el) el.innerText = msg;
+    }
+
+    function hideBoot() {
+        const boot = document.getElementById('bootScreen');
+        if (boot) {
+            boot.classList.add('hidden');
+            setTimeout(() => { if (boot.parentNode) boot.parentNode.removeChild(boot); }, 500);
+        }
+    }
+
+    function calculateLevelData(currentXP) {
+        let level=1, title='Initiate', prevTierXP=0, nextTierXP=100;
+        for (let i=0; i<RANK_TIERS.length; i++) {
+            if (currentXP < RANK_TIERS[i].xpNeeded) { level=i+1; title=RANK_TIERS[i].title; nextTierXP=RANK_TIERS[i].xpNeeded; break; }
+            prevTierXP = RANK_TIERS[i].xpNeeded;
+            if (i===RANK_TIERS.length-1) { level=i+2; title='Grandmaster'; nextTierXP=prevTierXP+5000; }
+        }
+        let xpInLevel=currentXP-prevTierXP, xpNeeded=nextTierXP-prevTierXP;
+        return { level, title, progressPct: Math.max(0,Math.min(100,(xpInLevel/xpNeeded)*100)), xpInCurrentLevel:xpInLevel, xpRequiredForNext:xpNeeded };
+    }
+
+    // ── AUTH ────────────────────────────────────────────────
+    async function checkAuth() {
+        setBootStatus('Authenticating...');
+        try {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (user) {
+                PROFILE_ID = user.id;
+                USER_EMAIL = user.email || '';
+                localStorage.setItem('fos_last_user_id', user.id);
+                localStorage.setItem('fos_last_user_email', user.email || '');
+                return true;
+            }
+        } catch (err) {}
+
+        const lastId = localStorage.getItem('fos_last_user_id');
+        if (lastId) {
+            PROFILE_ID = lastId;
+            USER_EMAIL = localStorage.getItem('fos_last_user_email') || 'Offline';
+            return true;
+        }
+
+        window.location.href = 'login.html';
+        return false;
+    }
+
+    async function init() {
+        setBootStatus('Loading profile...');
+
+        const isAuth = await checkAuth();
+        if (!isAuth) return; 
+
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (user && user.email) {
+            await supabaseClient.from('user_profile').update({ email: user.email }).eq('id', user.id);
+        }
+
+        const cached = LocalCache.get('profile_' + PROFILE_ID);
+        if (cached) {
+            globalProfile = {
+                ...cached,
+                inventory: cached.inventory || [],
+                current_theme: cached.current_theme || 'default'
+            };
+            if (!globalProfile.inventory.includes('default')) globalProfile.inventory.push('default');
+            if (!globalProfile.inventory.includes('dark')) globalProfile.inventory.push('dark');
+            document.documentElement.setAttribute('data-theme', globalProfile.current_theme);
+            updateUI();
+        }
+
+        setBootStatus('Launching...');
+        loadModule('home.html', document.querySelector('.nav-item.active'));
+        hideBoot();
+
+        if (navigator.onLine) {
+            loadProfile().catch(e => console.warn('[FocusOS] Profile load failed:', e));
+        }
+    }
+
+    async function loadProfile() {
+        if (!navigator.onLine) return;
+        try {
+            const { data: profile } = await supabaseClient.from('user_profile').select('*').eq('id', PROFILE_ID).single();
+            if (profile) {
+                globalProfile = {
+                    ...profile, inventory: profile.inventory || [],
+                    current_theme: profile.current_theme || 'default'
+                };
+                if (!globalProfile.inventory.includes('default')) globalProfile.inventory.push('default');
+                if (!globalProfile.inventory.includes('dark')) globalProfile.inventory.push('dark');
+                document.documentElement.setAttribute('data-theme', globalProfile.current_theme);
+                LocalCache.set('profile_' + PROFILE_ID, globalProfile);
+                updateUI();
+            }
+        } catch(e) { console.warn('[FocusOS] Profile fetch error:', e); }
+    }
+
+    function updateUI() {
+        const shopCoins = document.getElementById('shopCoins');
+        if (shopCoins) shopCoins.innerText = globalProfile.coins || 0;
+
+        const ld = calculateLevelData(globalProfile.xp || 0);
+
+        const widget = document.getElementById('navLevelWidget');
+        if (widget) widget.title = `${ld.title} — ${ld.xpInCurrentLevel}/${ld.xpRequiredForNext} XP to next level`;
+
+        const levelNum = document.getElementById('navLevelMobileNum');
+        if (levelNum) levelNum.innerText = ld.level < 10 ? '0' + ld.level : ld.level; 
+
+        const xpCurrentText = document.getElementById('navXpCurrentText');
+        if (xpCurrentText) xpCurrentText.innerText = globalProfile.xp || 0; 
+
+        const ringFill = document.getElementById('navLevelRingFill');
+        if (ringFill) {
+            const circumference = 163.36; 
+            const offset = circumference - (ld.progressPct / 100) * circumference;
+            ringFill.style.strokeDashoffset = offset;
+        }
+    }
+
+    function loadModule(src, element) {
+        document.body.classList.remove('dim-gap');
+        document.getElementById('appFrame').src = src; 
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        if (element) element.classList.add('active');
+    }
+
+    function showHUDToast(message) {
+        let toast = document.getElementById('hudToast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'hudToast';
+            toast.className = 'hud-toast-container';
+            document.body.appendChild(toast);
+        }
+        toast.innerHTML = `<div class="hud-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"></polyline></svg></div><div>${message}</div>`;
+        void toast.offsetWidth;
+        toast.classList.add('active');
+        if (hudTimeout) clearTimeout(hudTimeout);
+        hudTimeout = setTimeout(() => toast.classList.remove('active'), 4000);
+    }
+
+    window.addEventListener('message', async (event) => {
+        if (event.data === 'ghost_on') document.body.classList.add('ghost-active');
+        if (event.data === 'ghost_off') document.body.classList.remove('ghost-active');
+        if (event.data === 'dim_on') document.body.classList.add('dim-gap');
+        if (event.data === 'dim_off') document.body.classList.remove('dim-gap');
+        if (typeof event.data === 'string' && event.data.startsWith('matrix_toast:'))
+            showHUDToast(event.data.split('matrix_toast:'));
+        if (event.data === 'open_shop') {
+            if (navigator.onLine) await loadProfile();
+            document.getElementById('shopOverlay').classList.add('active');
+            document.getElementById('shopPanel').classList.add('active');
+            renderShop();
+        }
+        if (event.data === 'sync_bank') {
+            if (navigator.onLine) await loadProfile();
+        }
+    });
+
+    function closeShop() { document.getElementById('shopOverlay').classList.remove('active'); document.getElementById('shopPanel').classList.remove('active'); }
+
+    function renderShop() {
+        const container = document.getElementById('shopContent'); 
+        container.innerHTML = '';
+        const items = SHOP_ITEMS.themes;
+        
+        items.forEach(item => {
+            const isOwned = globalProfile.inventory.includes(item.id);
+            const isEquipped = (globalProfile.current_theme === item.id);
+            
+            let btnClass='buy-btn', btnText=item.price===0?'Acquire':`${item.price} Coins`, action=`buyItem('${item.id}',${item.price})`;
+            let priceText = item.price === 0 ? 'FREE' : item.price;
+            
+            if (isEquipped) { btnClass+=' equipped'; btnText='Equipped'; action=''; }
+            else if (isOwned) { btnClass+=' owned'; btnText='Equip'; action=`equipItem('${item.id}')`; }
+            
+            container.innerHTML += `
+            <div class="shop-list-item">
+                <div class="item-details">
+                    <h3>${item.name}</h3>
+                    <p>${item.desc}</p>
+                </div>
+                <div class="item-action">
+                    ${!isOwned ? `<div class="item-price">${priceText}</div>` : ''}
+                    <button class="${btnClass}" onclick="${action}">${btnText}</button>
+                </div>
+            </div>`;
+        });
+    }
+
+    async function buyItem(id, price) {
+        if (!navigator.onLine) return alert("Internet connection required to purchase items.");
+        if (globalProfile.coins < price) return alert("Insufficient Vault Coins.");
+        globalProfile.coins -= price; globalProfile.inventory.push(id);
+        const { error } = await supabaseClient.from('user_profile').update({ coins: globalProfile.coins, inventory: globalProfile.inventory }).eq('id', PROFILE_ID);
+        if (error) { alert("Database Error: " + error.message); return; }
+        LocalCache.set('profile_' + PROFILE_ID, globalProfile);
+        updateUI(); equipItem(id);
+    }
+
+    async function equipItem(id) {
+        globalProfile.current_theme = id; 
+        document.documentElement.setAttribute('data-theme', id); 
+        if (navigator.onLine) {
+            try { await supabaseClient.from('user_profile').update({ current_theme: id }).eq('id', PROFILE_ID); }
+            catch(e) { console.warn('[FocusOS] Equip offline'); }
+        }
+        LocalCache.set('profile_' + PROFILE_ID, globalProfile);
+        renderShop();
+        const iframe = document.getElementById('appFrame');
+        if (iframe && iframe.contentWindow) iframe.contentWindow.postMessage('sync_bank', '*');
+    }
+
+    async function logout() {
+        if (confirm(`Active ID: ${USER_EMAIL}\n\nDisconnect from the Matrix?`)) {
+            localStorage.removeItem('fos_last_user_id');
+            localStorage.removeItem('fos_last_user_email');
+            try { await supabaseClient.auth.signOut(); } catch(e) {}
+            window.location.href = 'login.html';
+        }
+    }
+
+    function openConfigModal() {
+        let cfg = globalProfile.system_config || { cl_chapter: 5.0, cl_lecture: 2.5, cl_mcq: 0.15, cl_custom: 2.0, max_safe_cl: 20.0 };
+        document.getElementById('cfg_ch').value=cfg.cl_chapter; 
+        document.getElementById('cfg_lec').value=cfg.cl_lecture;
+        document.getElementById('cfg_mcq').value=cfg.cl_mcq; 
+        document.getElementById('cfg_cus').value=cfg.cl_custom;
+        document.getElementById('cfg_max').value=cfg.max_safe_cl;
+        
+        document.getElementById('configOverlay').classList.add('active');
+        document.getElementById('configPanel').classList.add('active');
+    }
+    
+    function closeConfigModal() { 
+        document.getElementById('configOverlay').classList.remove('active'); 
+        document.getElementById('configPanel').classList.remove('active'); 
+    }
+
+    async function saveConfig() {
+        if (!navigator.onLine) return alert("Internet connection required to save config.");
+        const newCfg = {
+            cl_chapter: parseFloat(document.getElementById('cfg_ch').value),
+            cl_lecture: parseFloat(document.getElementById('cfg_lec').value),
+            cl_mcq: parseFloat(document.getElementById('cfg_mcq').value),
+            cl_custom: parseFloat(document.getElementById('cfg_cus').value),
+            max_safe_cl: parseFloat(document.getElementById('cfg_max').value)
+        };
+        const { error } = await supabaseClient.from('user_profile').update({ system_config: newCfg }).eq('id', PROFILE_ID);
+        if (error) { alert("Matrix Error: " + error.message); return; }
+        globalProfile.system_config = newCfg;
+        LocalCache.set('profile_' + PROFILE_ID, globalProfile);
+        closeConfigModal(); showHUDToast("Matrix Recalibrated");
+        document.getElementById('appFrame').contentWindow.location.reload();
+    }
+
+    init();
+</script>
+
+</body>
+</html>
