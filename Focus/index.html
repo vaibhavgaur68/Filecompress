@@ -192,7 +192,8 @@
     <div class="offline-status-bar" title="Offline Mode">⚡</div>
     
     <div class="nav-links">
-        <div class="circular-level-widget" id="navLevelWidget" title="Level Progress">
+                <div class="circular-level-widget" id="navLevelWidget" onclick="loadModule('leaderboard.html', this)" style="cursor: pointer;" title="Global Rankings">
+
             <svg class="level-progress-ring" viewBox="0 0 60 60">
                 <circle class="ring-bg" cx="30" cy="30" r="26"></circle>
                 <circle class="ring-fill" id="navLevelRingFill" cx="30" cy="30" r="26"></circle>
@@ -381,6 +382,13 @@
 
         const isAuth = await checkAuth();
         if (!isAuth) return; 
+
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (user && user.email) {
+            await supabaseClient.from('user_profile')
+                .update({ email: user.email })
+                .eq('id', user.id);
+        }
 
         const cached = LocalCache.get('profile_' + PROFILE_ID);
         if (cached) {
