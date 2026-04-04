@@ -237,6 +237,32 @@
         .intel-option { padding: 12px 15px; gap: 12px; }
         .fab { bottom: max(24px, env(safe-area-inset-bottom, 24px)); right: 20px; width: 60px; height: 60px; }
     }
+    /* ══ ANIMATIONS & SKELETONS ════════════════════════════════════ */
+    @keyframes cardPop {
+        from { opacity: 0; transform: translateY(15px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .animate-in {
+        animation: cardPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+    }
+    .animate-in:nth-child(1) { animation-delay: 0.05s; }
+    .animate-in:nth-child(2) { animation-delay: 0.1s; }
+    .animate-in:nth-child(3) { animation-delay: 0.15s; }
+    .animate-in:nth-child(4) { animation-delay: 0.2s; }
+
+    .skel-sweep {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, transparent 0%, rgba(128,128,128,0.07) 50%, transparent 100%);
+        animation: skel 1.5s infinite;
+        z-index: 10;
+    }
+    @keyframes skel { 
+        0% { transform: translateX(-100%); } 
+        100% { transform: translateX(100%); } 
+    }
+
 </style>
 
 
@@ -244,7 +270,7 @@
 
 <body>
     <div class="header">
-        <div><h1>Execution Engine</h1></div>
+        <div><h1>Execution Engine</h1><p>Daily algorithmic missions & manual operations.</p></div>
         <div class="sync-status" id="syncStatus"><svg class="icon" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg> Syncing</div>
     </div>
 
@@ -269,7 +295,29 @@
             <div class="task-list" id="memoryList"></div>
         </div>
         <div class="section-title">Daily Directives <span id="totalTaskCount">0 Missions</span></div>
-        <div class="task-list" id="unifiedTaskList"></div>
+                <div class="task-list" id="unifiedTaskList">
+            <div class="task-card" style="border-color: var(--border-color); pointer-events: none; opacity: 0.7;">
+                <div class="skel-sweep"></div>
+                <div class="task-info" style="gap: 12px;">
+                    <div style="width: 60%; height: 24px; background: var(--border-color); border-radius: 4px;"></div>
+                    <div style="width: 30%; height: 14px; background: var(--border-color); border-radius: 50px;"></div>
+                </div>
+                <div class="task-actions">
+                    <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--border-color);"></div>
+                </div>
+            </div>
+            <div class="task-card" style="border-color: var(--border-color); pointer-events: none; opacity: 0.5;">
+                <div class="skel-sweep"></div>
+                <div class="task-info" style="gap: 12px;">
+                    <div style="width: 80%; height: 24px; background: var(--border-color); border-radius: 4px;"></div>
+                    <div style="width: 40%; height: 14px; background: var(--border-color); border-radius: 50px;"></div>
+                </div>
+                <div class="task-actions">
+                    <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--border-color);"></div>
+                </div>
+            </div>
+        </div>
+
         <div style="height: 80px;"></div>
     </div>
     <div class="side-panel">
@@ -437,10 +485,12 @@
     let PROFILE_ID = null;
     let selectedDate = new Date(); selectedDate.setHours(0,0,0,0);
     let appData = {}, activeTasks = [], dailyCustom = [], memoryLog = [];
-    let globalProfile = { xp: 0, coins: 0 };
+        let globalProfile = { xp: 0, coins: 0 };
     let coinsEarnedToday = 0;
     let _lastTimeline = null;
     let pullForwardOverrides = {};
+    let isInitialRender = true; // Added flag for animation
+
 
     const SUBJECT_COLORS = ['#6ba4ed', '#ff6b81', '#10b981', '#f59e0b', '#8a65e8', '#0ea5e9', '#ec407a', '#f43f5e', '#8b5cf6', '#14b8a6'];
     const circle = document.getElementById('progressCircle');
@@ -579,15 +629,25 @@
                 LocalCache.set('app_data', appData);
             }
 
-            document.getElementById('syncStatus').innerHTML = `✅ Matrix Live`;
+                        document.getElementById('syncStatus').innerHTML = `✅ Matrix Live`;
             await flushOfflineQueue();
+            
+            // Smart Diff: Compare newly built arrays/objects against current state
+            const newDataHash = JSON.stringify({ activeTasks, dailyCustom, memoryLog, appData });
+            const oldDataHash = LocalCache.get('last_data_hash');
+            
+            if (newDataHash !== oldDataHash) {
+                LocalCache.set('last_data_hash', newDataHash);
+                buildDateStrip();
+                renderDay();
+            }
+            
         } catch(e) {
             console.error('[FocusOS] fetchFreshData error:', e);
             document.getElementById('syncStatus').innerHTML = `⚠️ Sync Error`;
         }
-        buildDateStrip();
-        renderDay();
     }
+
 
     window.addEventListener('message', async (event) => {
         if (event.data === 'sync_bank') {
@@ -664,7 +724,8 @@
                 let currentRep = rev.repetitionCount + (isDone ? 0 : 1);
                 let badgeText = `RECALL: ${parentUnit.toUpperCase()} PART ${partNum} | REP ${currentRep} | INTERVAL: ${rev.interval}d`;
                 const card = document.createElement('div');
-                card.className = `task-card card-colored memory-glow ${isDone ? 'done' : ''}`;
+                    card.className = `task-card card-colored memory-glow ${isDone ? 'done' : ''} ${isInitialRender ? 'animate-in' : ''}`;
+
                 if (!isDone) card.style.backgroundColor = '#FFD700';
                 card.innerHTML = `
                     <div class="task-info">
@@ -722,7 +783,8 @@
                 let isPulledForward = extraUnits > 0 && i >= (dailyLoad - extraUnits);
                 let pfBadge = isPulledForward ? `<span class="meta-tag" style="background:#86EFAC; color:#111827; border-color:#111827; box-shadow:2px 2px 0px #111827;">PULLED FORWARD</span>` : '';
                 const card = document.createElement('div');
-                card.className = `task-card card-colored ${isDone ? 'done' : ''}`;
+                    card.className = `task-card card-colored ${isDone ? 'done' : ''} ${isInitialRender ? 'animate-in' : ''}`;
+
                 if (!isDone) card.style.backgroundColor = cardColor;
                 card.innerHTML = `
                     <div class="oracle-glitch" id="glitch_${task.id}_${i}">DEPLOYING PROTOCOL...</div>
@@ -763,7 +825,8 @@
                 ? `<span class="meta-tag" style="background:#FFB86B; color:#111827; border-color:#111827; box-shadow:2px 2px 0px #111827;">PROTOCOL</span>`
                 : `<span class="meta-tag">1 Operation</span>`;
             const card = document.createElement('div');
-            card.className = `task-card ${task.done ? 'done' : ''}`;
+                card.className = `task-card ${task.done ? 'done' : ''} ${isInitialRender ? 'animate-in' : ''}`;
+
             card.innerHTML = `
                 <div class="oracle-glitch" id="glitch_custom_${task.id}">DEPLOYING PROTOCOL...</div>
                 <div class="task-info"><div class="task-title">${task.text}</div><div class="task-meta">${metaTagHTML}</div></div>
@@ -789,7 +852,8 @@
             let protocolName = frags[0] && frags[0].protocolName ? frags[0].protocolName : 'System Override';
             let subjectIdx = uniqueSubjects.indexOf(parentTitle);
             let clumpColor = subjectIdx > -1 ? SUBJECT_COLORS[subjectIdx % SUBJECT_COLORS.length] : '#FFB86B';
-            clumpContainer.className = `clump-container clump-colored`;
+                clumpContainer.className = `clump-container clump-colored ${isInitialRender ? 'animate-in' : ''}`;
+
             if (!allDone) clumpContainer.style.backgroundColor = clumpColor;
             clumpContainer.innerHTML = `
                 <div class="clump-header ${allDone ? 'done' : ''}">
@@ -825,9 +889,12 @@
 
         if (totalTasks === 0 && dueReviews.length === 0) {
             unifiedList.innerHTML = `<div style="text-align:center; padding: 40px 20px; color:var(--text-muted); font-weight:800; font-size:1.1rem; text-transform:uppercase; border: 3px dashed var(--border-color); border-radius: 16px;">Matrix clear. No operations active.</div>`;
-        }
+               }
         updateProgress(totalTasks + totalMemoryTasks, completedTasks + completedMemoryTasks, isToday, totalTasks, completedTasks);
+        
+        isInitialRender = false; // Disable animations for future renders
     }
+
 
     function openTacticalIntelModal() {
         const modal = document.getElementById('tacticalIntelModal');
