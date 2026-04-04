@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>FocusOS | Strategy Board</title>
     <link rel="stylesheet" href="themes.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Fjalla+One&family=Albert+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-    // Synchronous theme pre-loader to stop the iframe flash
     try {
         const userId = localStorage.getItem('fos_last_user_id');
         if (userId) {
@@ -22,156 +23,803 @@
     } catch(e) {}
 </script>
 
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
-        html { height: 100%; overflow: hidden; }
-        body { background-color: var(--bg-color); color: var(--text-main); padding: 30px; transition: background-color 0.3s; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-    .header { margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
-    .header h1 { font-size: 2.2rem; font-weight: 900; letter-spacing: -1px; }
-    .header p { color: var(--text-muted); font-weight: 600; font-size: 0.9rem; margin-top: 5px; }
-    .sync-status { font-size: 0.8rem; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
-    .offline-banner { display: none; background: #FFE873; color: #111827; border: 3px solid #111827; border-radius: 12px; padding: 10px 18px; margin-bottom: 20px; font-weight: 900; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; box-shadow: 4px 4px 0px #111827; }
-    .offline-banner.visible { display: block; }
-    .board-area { width: 100%; }
-        .fab {
+<style>
+    /* ══ RESET & BASE ══════════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html { height: 100%; overflow: hidden; }
+    body {
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        font-family: 'Albert Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        height: 100%;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* ══ STICKY HEADER ═════════════════════════════════════════════ */
+    .page-header {
+        position: sticky;
+        top: 0;
+        z-index: 200;
+        background: var(--panel-bg);
+        border-bottom: 3px solid var(--text-main);
+        box-shadow: 0 4px 0px var(--text-main);
+        padding: 0 24px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        height: 62px;
+        flex-shrink: 0;
+    }
+
+    .header-title {
+        font-family: 'Fjalla One', sans-serif;
+        font-size: 1.05rem;
+        font-weight: 900;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        color: var(--text-main);
+        flex-shrink: 0;
+    }
+    .header-title span { color: var(--primary); }
+
+    .header-spacer { flex: 1; }
+
+    /* ── Header Search Button ── */
+    .header-search-btn {
+        background: transparent;
+        border: none;
+        color: var(--text-main);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px;
+        transition: transform 0.1s;
+    }
+    .header-search-btn:active { transform: scale(0.9); }
+    .header-search-btn svg {
+        width: 20px; height: 20px;
+        stroke: currentColor; stroke-width: 2.5; fill: none;
+    }
+
+    /* ── View Toggle (pill style) ── */
+    .view-toggle-pill {
+        position: relative;
+        display: flex;
+        align-items: center;
+        background: var(--bg-color);
+        border: 3px solid var(--text-main);
+        border-radius: 50px;
+        padding: 3px;
+        box-shadow: 3px 3px 0px var(--text-main);
+        gap: 0;
+        flex-shrink: 0;
+    }
+
+    .pill-track {
+        position: absolute;
+        top: 3px;
+        bottom: 3px;
+        left: 3px;
+        width: calc(50% - 3px);
+        background: var(--text-main);
+        border-radius: 50px;
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .view-toggle-pill.archive-active .pill-track {
+        transform: translateX(100%);
+    }
+
+    .pill-tab {
+        position: relative;
+        z-index: 1;
+        padding: 6px 16px;
+        font-family: 'Fjalla One', sans-serif;
+        font-size: 0.7rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        cursor: pointer;
+        border: none;
+        background: transparent;
+        color: var(--text-muted);
+        border-radius: 50px;
+        transition: color 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+    }
+    .pill-tab.active { color: var(--bg-color); }
+    .pill-tab svg { width: 13px; height: 13px; stroke: currentColor; stroke-width: 2.5; fill: none; flex-shrink: 0; }
+
+    /* ── Sync badge ── */
+    .sync-badge {
+        font-family: 'Albert Sans', sans-serif;
+        font-size: 0.68rem;
+        font-weight: 900;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+    .sync-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--success, #10b981);
+        border: 2px solid var(--text-main);
+        animation: syncPulse 2s ease-in-out infinite;
+        flex-shrink: 0;
+    }
+    .sync-dot.syncing { background: #f59e0b; animation: syncPulse 0.7s ease-in-out infinite; }
+    .sync-dot.error { background: var(--danger); animation: none; }
+    @keyframes syncPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
+
+    /* ── Count chip ── */
+    .count-chip {
+        font-family: 'Albert Sans', sans-serif;
+        font-size: 0.62rem;
+        font-weight: 900;
+        color: var(--text-muted);
+        background: var(--bg-color);
+        border: 2px solid var(--text-main);
+        border-radius: 50px;
+        padding: 3px 10px;
+        box-shadow: 2px 2px 0px var(--text-main);
+        flex-shrink: 0;
+    }
+
+    /* ══ SCROLLABLE CONTENT ════════════════════════════════════════ */
+    .page-body {
+        flex: 1;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 24px 24px 120px;
+    }
+
+    /* ══ SEARCH BAR MAIN LAYOUT ════════════════════════════════════ */
+    .search-container {
+        display: none;
+        position: relative;
+        margin-bottom: 20px;
+        animation: slideDown 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .search-container.active { display: block; }
+    .search-input {
+        width: 100%;
+        padding: 14px 44px 14px 16px;
+        background: var(--panel-bg);
+        border: 3px solid var(--text-main);
+        border-radius: 16px;
+        font-family: 'Albert Sans', sans-serif;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--text-main);
+        outline: none;
+        box-shadow: 4px 4px 0px var(--text-main);
+        transition: box-shadow 0.15s;
+    }
+    .search-input:focus { box-shadow: 6px 6px 0px var(--primary); }
+    .search-input::placeholder { opacity: 0.5; }
+    
+    .search-clear-btn {
+        position: absolute;
+        right: 14px; top: 50%; transform: translateY(-50%);
+        width: 28px; height: 28px;
+        background: var(--bg-color);
+        border: 2px solid var(--text-main);
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; color: var(--text-main);
+        box-shadow: 2px 2px 0px var(--text-main);
+        transition: all 0.1s;
+    }
+    .search-clear-btn:active { transform: translateY(-50%) translate(2px, 2px); box-shadow: 0px 0px 0px var(--text-main); }
+    .search-clear-btn svg { width: 14px; height: 14px; stroke-width: 3; stroke: currentColor; fill: none;}
+    
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ══ CARDS GRID ════════════════════════════════════════════════ */
+    .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+        gap: 20px;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-muted);
+        font-weight: 900;
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        border: 3px dashed var(--border-color);
+        border-radius: 20px;
+        grid-column: 1 / -1;
+        cursor: pointer;
+        transition: border-color 0.2s, color 0.2s;
+    }
+    .empty-state:hover { border-color: var(--primary); color: var(--primary); }
+    .empty-state-icon { font-size: 2.5rem; display: block; margin-bottom: 12px; }
+
+    /* ══ FLIP CARD ══════════════════════════════════════════════════ */
+    .card-scene {
+        perspective: 1000px;
+        user-select: none;
+        height: 220px; /* CRUSHED to ultra-density */
+        cursor: pointer;
+    }
+
+    .card-flipper {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        transform-style: preserve-3d;
+        display: grid;
+    }
+
+    .card-scene.is-flipped .card-flipper { transform: rotateY(180deg); }
+
+    .card-face {
+        grid-area: 1 / 1;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        border: 3px solid var(--text-main);
+        border-radius: 20px;
+        padding: 16px; 
+        color: #111827;
+        transition: transform 0.15s, box-shadow 0.15s;
+        height: 100%;
+    }
+
+    .card-face-front {
+        position: relative;
+        z-index: 2;
+        box-shadow: 6px 6px 0px var(--text-main);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .card-scene:not(.is-flipped):hover .card-face-front {
+        transform: translate(-3px, -3px);
+        box-shadow: 9px 9px 0px var(--text-main);
+    }
+
+    .card-face-back {
+        transform: rotateY(180deg);
+        box-shadow: 6px 6px 0px var(--text-main);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .card-scene.is-flipped:hover .card-face-back {
+        transform: rotateY(180deg) translate(-3px, -3px);
+        box-shadow: 9px 9px 0px var(--text-main);
+    }
+
+    /* ── Card Front ── */
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+    .card-unit-pill {
+        background: rgba(255,255,255,0.55);
+        border: 2px solid rgba(17,24,39,0.4);
+        border-radius: 50px;
+        padding: 4px 12px;
+        font-family: 'Albert Sans', sans-serif;
+        font-size: 0.7rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        backdrop-filter: blur(4px);
+    }
+    .card-stars { display: flex; gap: 1px; }
+    .card-stars svg { width: 14px; height: 14px; fill: rgba(17,24,39,0.75); stroke: none; }
+
+    .card-subject {
+        font-family: 'Fjalla One', sans-serif;
+        font-size: 1.4rem; /* Adjusted for smaller card */
+        line-height: 1.1;
+        margin-bottom: 4px;
+        letter-spacing: 0.3px;
+        color: #111827;
+    }
+    
+    .card-desc {
+        font-size: 0.8rem;
+        font-weight: 600;
+        line-height: 1.35;
+        opacity: 0.75;
+        margin-bottom: 12px; 
+        display: -webkit-box;
+        -webkit-line-clamp: 2; 
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .card-footer { margin-top: auto; }
+    .progress-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 6px;
+    }
+    .progress-pct {
+        font-family: 'Albert Sans', sans-serif;
+        font-variant-numeric: tabular-nums;
+        font-size: 0.6rem;
+        font-weight: 900;
+        opacity: 0.65;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .neo-progress-bg {
+        width: 100%;
+        height: 6px; 
+        background: rgba(255,255,255,0.5);
+        border: 1.5px solid rgba(17,24,39,0.35);
+        border-radius: 50px;
+        overflow: hidden;
+        margin-bottom: 12px;
+    }
+    .neo-progress-fill {
+        height: 100%;
+        background: #111827;
+        border-radius: 50px;
+        transition: width 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .card-stats {
+        display: flex;
+        justify-content: space-between;
+    }
+    .stat-block { display: flex; flex-direction: column; }
+    .stat-block:nth-child(2) { align-items: center; }
+    .stat-block:last-child { align-items: flex-end; }
+    .stat-val {
+        font-family: 'Albert Sans', sans-serif;
+        font-variant-numeric: tabular-nums;
+        font-size: 1.15rem;
+        font-weight: 900;
+        line-height: 1;
+        color: #111827;
+    }
+    .stat-lbl {
+        font-size: 0.55rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        opacity: 0.6;
+        margin-top: 3px;
+    }
+
+    /* mastered overlay */
+    .mastered-overlay {
+        position: absolute;
+        top: 12px; right: 12px;
+        background: #111827;
+        color: #fff;
+        font-family: 'Fjalla One', sans-serif;
+        font-size: 0.6rem;
+        font-weight: 900;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        padding: 4px 10px;
+        border-radius: 50px;
+        z-index: 3;
+    }
+
+    /* ── Card Back ── */
+    .back-inner {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+    }
+    .back-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        padding-bottom: 6px;
+        border-bottom: 2px solid rgba(17,24,39,0.2);
+    }
+    .back-title {
+        font-family: 'Fjalla One', sans-serif;
+        font-size: 0.6rem;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        opacity: 0.5;
+    }
+    .lock-badge {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.55rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 2px 6px;
+        border-radius: 50px;
+        border: 2px solid rgba(17,24,39,0.3);
+        opacity: 0.7;
+    }
+    .lock-badge svg { width: 8px; height: 8px; stroke: currentColor; stroke-width: 3; fill: none; }
+
+    .intel-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px; 
+        margin-bottom: 8px;
+    }
+    .intel-cell {
+        background: rgba(255,255,255,0.45);
+        border: 2px solid rgba(17,24,39,0.18);
+        border-radius: 8px;
+        padding: 6px 8px; 
+        backdrop-filter: blur(4px);
+    }
+    .intel-cell-val {
+        font-family: 'Albert Sans', sans-serif;
+        font-variant-numeric: tabular-nums;
+        font-size: 1.05rem; 
+        font-weight: 900;
+        color: #111827;
+        line-height: 1;
+    }
+    .intel-cell-lbl {
+        font-size: 0.5rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: rgba(17,24,39,0.55);
+        margin-top: 2px;
+    }
+
+    /* deadline bar */
+    .deadline-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 8px;
+        background: rgba(255,255,255,0.45);
+        border: 2px solid rgba(17,24,39,0.18);
+        border-radius: 8px;
+        margin-bottom: 6px;
+    }
+    .deadline-icon {
+        width: 24px; height: 24px;
+        background: #111827;
+        border-radius: 6px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+    }
+    .deadline-icon svg { width: 12px; height: 12px; stroke: #fff; stroke-width: 2.5; fill: none; }
+    .deadline-info { flex: 1; }
+    .deadline-label { font-size: 0.5rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; opacity: 0.55; }
+    .deadline-value {
+        font-family: 'Albert Sans', sans-serif;
+        font-variant-numeric: tabular-nums;
+        font-size: 0.75rem; 
+        font-weight: 900;
+        color: #111827;
+    }
+
+    /* ── Action buttons on card ── */
+    .delete-btn {
+        position: absolute;
+        top: -10px; right: -10px;
+        width: 32px; height: 32px;
+        background: #FF4747;
+        border: 2px solid #111827;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer;
+        box-shadow: 2px 2px 0px #111827;
+        color: white;
+        z-index: 10;
+        transform: translateZ(1px); 
+        transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .delete-btn:active { transform: translate(2px, 2px) translateZ(1px); box-shadow: 0px 0px 0px #111827; }
+    .delete-btn svg { width: 14px; height: 14px; stroke-width: 3; }
+
+    .edit-btn {
+        position: absolute;
+        top: -10px; right: 32px;
+        width: 32px; height: 32px;
+        background: var(--primary);
+        border: 2px solid #111827;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer;
+        box-shadow: 2px 2px 0px #111827;
+        color: #111827;
+        z-index: 10;
+        transform: translateZ(1px); 
+        transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .edit-btn:active { transform: translate(2px, 2px) translateZ(1px); box-shadow: 0px 0px 0px #111827; }
+    .edit-btn svg { width: 14px; height: 14px; stroke-width: 3; }
+
+    /* ══ FAB ════════════════════════════════════════════════════════ */
+    .fab {
         position: fixed;
-        bottom: max(36px, env(safe-area-inset-bottom, 36px));
-        right: 28px; 
-        width: 64px; height: 64px;
+        bottom: max(30px, env(safe-area-inset-bottom, 30px));
+        right: 24px;
+        width: 60px; height: 60px;
         background: var(--primary);
         border: 3px solid var(--text-main);
         border-radius: 50%;
         box-shadow: 5px 5px 0px var(--text-main);
         display: flex; align-items: center; justify-content: center;
-        cursor: pointer; z-index: 200;
+        cursor: pointer;
+        z-index: 200;
         transition: transform 0.15s, box-shadow 0.15s;
         color: white;
-        -webkit-tap-highlight-color: transparent;
         touch-action: manipulation;
     }
     .fab:active { transform: translate(5px, 5px); box-shadow: 0px 0px 0px var(--text-main); }
-    .fab svg { width: 30px; height: 30px; stroke: white; stroke-width: 3; transition: transform 0.3s ease-out; flex-shrink: 0; pointer-events: none; }
+    .fab svg { width: 28px; height: 28px; stroke: white; stroke-width: 3; transition: transform 0.3s ease-out; pointer-events: none; }
     .fab.is-open svg { transform: rotate(45deg); }
     @keyframes fabPulse {
-        0%   { box-shadow: 5px 5px 0px var(--text-main), 0 0 0 0 rgba(var(--primary-rgb, 99,102,241), 0.35); }
-        70%  { box-shadow: 5px 5px 0px var(--text-main), 0 0 0 14px rgba(var(--primary-rgb, 99,102,241), 0); }
-        100% { box-shadow: 5px 5px 0px var(--text-main), 0 0 0 0 rgba(var(--primary-rgb, 99,102,241), 0); }
+        0%, 100% { box-shadow: 5px 5px 0px var(--text-main), 0 0 0 0 rgba(107,164,237,0.35); }
+        70% { box-shadow: 5px 5px 0px var(--text-main), 0 0 0 14px rgba(107,164,237,0); }
     }
     .fab:not(.is-open) { animation: fabPulse 2.8s ease-out 1.5s 3; }
-    .form-drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 150; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
-    .form-drawer-overlay.is-open { opacity: 1; pointer-events: all; }
-    .form-drawer { position: fixed; top: 0; left: 50%; transform: translateX(-50%) translateY(-110%); width: min(520px, calc(100vw - 32px)); max-height: 90vh; overflow-y: auto; -webkit-overflow-scrolling: touch; z-index: 160; transition: transform 0.3s ease-out; }
-    .form-drawer.is-open { transform: translateX(-50%) translateY(20px); }
-    @media (max-width: 600px) {
-        .form-drawer { top: auto; bottom: 0; left: 0; right: 0; width: 100%; max-height: 92vh; border-radius: 20px 20px 0 0; left: 0 !important; transform: translateY(110%) !important; }
-        .form-drawer.is-open { transform: translateY(0) !important; }
-        .form-panel::before { content: ''; display: block; width: 44px; height: 5px; background: var(--text-main); opacity: 0.25; border-radius: 3px; margin: 0 auto 18px; }
+
+    /* ══ FORM DRAWER ════════════════════════════════════════════════ */
+    .form-drawer-overlay {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 250; 
+        opacity: 0; pointer-events: none;
+        transition: opacity 0.3s;
+        backdrop-filter: blur(4px);
     }
-    .form-panel { background: var(--panel-bg); border: 3px solid var(--text-main); border-radius: 16px; padding: 25px; padding-bottom: max(25px, calc(env(safe-area-inset-bottom) + 20px)); box-shadow: 6px 6px 0px var(--text-main); }
-    @media (max-width: 600px) { .form-panel { border-radius: 20px 20px 0 0; border-bottom: none; box-shadow: none; border-top: 3px solid var(--text-main); border-left: 3px solid var(--text-main); border-right: 3px solid var(--text-main); } }
-    .form-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
-    .form-panel-title { font-size: 1rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; }
-    .form-close-btn { width: 40px; height: 40px; background: var(--bg-color); border: 2px solid var(--text-main); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 2px 2px 0px var(--text-main); transition: all 0.15s; color: var(--text-main); flex-shrink: 0; touch-action: manipulation; }
+    .form-drawer-overlay.is-open { opacity: 1; pointer-events: all; }
+
+    .form-drawer {
+        position: fixed;
+        top: 0; left: 50%;
+        transform: translateX(-50%) translateY(-110%);
+        width: min(500px, calc(100vw - 32px));
+        max-height: 90vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        z-index: 260; 
+        transition: transform 0.3s ease-out;
+    }
+
+    .form-drawer.is-open { transform: translateX(-50%) translateY(20px); }
+
+    .form-panel {
+        background: var(--panel-bg);
+        border: 3px solid var(--text-main);
+        border-radius: 20px;
+        padding: 24px;
+        box-shadow: 8px 8px 0px var(--text-main);
+    }
+
+    .form-panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    .form-panel-title {
+        font-family: 'Fjalla One', sans-serif;
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-main);
+    }
+    .form-close-btn {
+        width: 36px; height: 36px;
+        background: var(--bg-color);
+        border: 2px solid var(--text-main);
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer;
+        box-shadow: 2px 2px 0px var(--text-main);
+        transition: all 0.1s;
+        color: var(--text-main);
+    }
     .form-close-btn:active { transform: translate(2px,2px); box-shadow: 0px 0px 0px var(--text-main); }
-    .form-group { margin-bottom: 14px; width: 100%; display: block; }
-    .form-label { display: block; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; color: var(--text-main); opacity: 0.85; }
-    .neo-input { width: 100%; padding: 10px 12px; background: var(--bg-color); border: 2px solid var(--text-main); border-radius: 8px; font-size: max(16px, 0.95rem); font-weight: 700; color: var(--text-main); outline: none; transition: box-shadow 0.2s, border-color 0.2s; box-sizing: border-box; display: block; }
+    .form-close-btn svg { width: 16px; height: 16px; stroke-width: 3; }
+
+    .form-group { margin-bottom: 14px; }
+    .form-label {
+        display: block;
+        font-size: 0.65rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        margin-bottom: 6px;
+        color: var(--text-main);
+        opacity: 0.75;
+    }
+    .neo-input {
+        width: 100%;
+        padding: 10px 13px;
+        background: var(--bg-color);
+        border: 2px solid var(--text-main);
+        border-radius: 10px;
+        font-family: 'Albert Sans', sans-serif;
+        font-size: max(16px, 0.9rem);
+        font-weight: 700;
+        color: var(--text-main);
+        outline: none;
+        transition: box-shadow 0.15s;
+        display: block;
+    }
     .neo-input:focus { box-shadow: 3px 3px 0px var(--primary); }
     .input-error { border-color: #FF4747 !important; box-shadow: 3px 3px 0px #FF4747 !important; }
-    @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
-    .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
-    textarea.neo-input { resize: none; min-height: 54px; font-weight: 600; }
-    input[type="date"].neo-input { -webkit-appearance: none; appearance: none; min-height: 40px; }
+    textarea.neo-input { resize: none; min-height: 52px; font-weight: 600; }
+    input[type="date"].neo-input { -webkit-appearance: none; min-height: 42px; }
     input[type="number"].neo-input { -moz-appearance: textfield; }
-    input[type="number"].neo-input::-webkit-inner-spin-button, input[type="number"].neo-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-    .row-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; }
-    .row-inputs-compact { display: grid; grid-template-columns: auto 1fr; gap: 15px; width: 100%; align-items: end; }
-    .unit-toggle { display: flex; gap: 8px; width: 100%; }
-    .unit-btn { flex: 1; padding: 8px 0; background: var(--bg-color); border: 2px solid var(--text-main); border-radius: 8px; font-weight: 800; font-size: 0.75rem; cursor: pointer; transition: all 0.1s; color: var(--text-main); box-shadow: 2px 2px 0px var(--text-main); touch-action: manipulation; }
-    .unit-btn.active { background: var(--text-main); color: var(--bg-color); transform: translate(3px, 3px); box-shadow: 0px 0px 0px var(--text-main); }
-    .star-rating { display: flex; gap: 6px; cursor: pointer; }
-    .star { width: 28px; height: 28px; fill: transparent; stroke: var(--text-main); stroke-width: 2.5; transition: all 0.2s; touch-action: manipulation; }
-    .star.active { fill: var(--text-main); stroke: var(--text-main); }
-    .star:hover { transform: scale(1.1); }
-    .lock-toggle-btn { background: var(--bg-color); border: 2px solid var(--text-main); color: var(--text-main); padding: 6px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 900; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: all 0.2s; box-shadow: 2px 2px 0px var(--text-main); touch-action: manipulation; min-height: 36px; }
+    input[type="number"].neo-input::-webkit-inner-spin-button,
+    input[type="number"].neo-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+    .row-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    .unit-toggle { display: flex; gap: 6px; }
+    .unit-btn {
+        flex: 1; padding: 8px 0;
+        background: var(--bg-color);
+        border: 2px solid var(--text-main);
+        border-radius: 8px;
+        font-family: 'Albert Sans', sans-serif;
+        font-weight: 900; font-size: 0.75rem;
+        cursor: pointer;
+        transition: all 0.1s;
+        color: var(--text-main);
+        box-shadow: 2px 2px 0px var(--text-main);
+        touch-action: manipulation;
+    }
+    .unit-btn.active {
+        background: var(--text-main);
+        color: var(--bg-color);
+        transform: translate(2px, 2px);
+        box-shadow: 0px 0px 0px var(--text-main);
+    }
+
+    .star-rating { display: flex; gap: 5px; cursor: pointer; }
+    .star {
+        width: 26px; height: 26px;
+        fill: transparent;
+        stroke: var(--text-main); stroke-width: 2.5;
+        transition: all 0.15s;
+    }
+    .star.active { fill: var(--text-main); }
+    .star:hover { transform: scale(1.15); }
+
+    .deadline-row-form {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+    }
+
+    .lock-toggle-btn {
+        background: var(--bg-color);
+        border: 2px solid var(--text-main);
+        color: var(--text-main);
+        padding: 4px 10px;
+        border-radius: 50px;
+        font-size: 0.62rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        display: flex; align-items: center; gap: 5px;
+        transition: all 0.15s;
+        box-shadow: 2px 2px 0px var(--text-main);
+    }
     .lock-toggle-btn.locked { background: #FF4747; color: white; border-color: #111827; box-shadow: 2px 2px 0px #111827; }
-    .lock-toggle-btn:active { transform: translate(2px, 2px); box-shadow: 0px 0px 0px transparent !important; }
-    .submit-btn { width: 100%; padding: 18px; background: var(--primary); color: white; border: 3px solid var(--text-main); border-radius: 12px; font-weight: 900; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; box-shadow: 4px 4px 0px var(--text-main); transition: all 0.1s; margin-top: 10px; touch-action: manipulation; min-height: 56px; }
+    .lock-toggle-btn svg { width: 10px; height: 10px; stroke: currentColor; stroke-width: 3; fill: none; }
+
+    .submit-btn {
+        width: 100%;
+        padding: 16px;
+        background: var(--primary);
+        color: #111827;
+        border: 3px solid var(--text-main);
+        border-radius: 12px;
+        font-family: 'Fjalla One', sans-serif;
+        font-weight: 900; font-size: 1.05rem;
+        text-transform: uppercase; letter-spacing: 1px;
+        cursor: pointer;
+        box-shadow: 4px 4px 0px var(--text-main);
+        transition: all 0.1s;
+        margin-top: 12px;
+    }
     .submit-btn:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px var(--text-main); }
-    .view-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
-    .view-toggle { display: flex; background: var(--panel-bg); border: 3px solid var(--text-main); border-radius: 12px; overflow: hidden; box-shadow: 4px 4px 0px var(--text-main); }
-    .view-btn { padding: 12px 20px; background: transparent; border: none; font-weight: 900; text-transform: uppercase; font-size: 0.85rem; color: var(--text-main); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; outline: none; touch-action: manipulation; min-height: 48px; }
-    .view-btn.active { background: var(--text-main); color: var(--bg-color); }
-    .view-btn svg { width: 18px; height: 18px; stroke-width: 2.5; flex-shrink: 0; }
-    .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; }
-    .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); font-weight: 800; font-size: 1.1rem; text-transform: uppercase; border: 3px dashed var(--border-color); border-radius: 16px; grid-column: 1 / -1; }
-    .card-scene { perspective: 1000px; user-select: none; min-height: 240px; cursor: pointer; }
-    .card-flipper { position: relative; width: 100%; height: 100%; transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform-style: preserve-3d; }
-    .card-scene.is-flipped .card-flipper { transform: rotateY(180deg); }
-    .card-face { -webkit-backface-visibility: hidden; backface-visibility: hidden; border: 3px solid var(--text-main); border-radius: 16px; padding: 20px; color: #111827; transition: transform 0.2s, box-shadow 0.2s; }
-    .card-face-front { position: relative; z-index: 2; box-shadow: 6px 6px 0px var(--text-main); display: flex; flex-direction: column; height: 100%; }
-    .card-scene:not(.is-flipped):hover .card-face-front { transform: translate(-2px, -2px); box-shadow: 8px 8px 0px var(--text-main); }
-    .card-face-back { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: rotateY(180deg); box-shadow: -6px 6px 0px var(--text-main); display: flex; flex-direction: column; justify-content: center; }
-    .card-scene.is-flipped:hover .card-face-back { transform: rotateY(180deg) translate(2px, -2px); box-shadow: -8px 8px 0px var(--text-main); }
-    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-    .card-pill { background: #ffffff; border: 2px solid #111827; border-radius: 50px; padding: 4px 12px; font-size: 0.75rem; font-weight: 900; text-transform: uppercase; box-shadow: 2px 2px 0px #111827; }
-    .card-stars { display: flex; gap: 2px; }
-    .card-stars svg { width: 16px; height: 16px; color: #111827; fill: #111827; }
-    .card-title { font-size: 1.6rem; font-weight: 900; line-height: 1.1; margin-bottom: 8px; letter-spacing: -0.5px; }
-    .card-desc { font-size: 0.9rem; font-weight: 600; line-height: 1.4; opacity: 0.85; margin-bottom: 25px; flex: 1; }
-    .card-footer { display: flex; flex-direction: column; gap: 12px; margin-top: auto; }
-    .card-stats { display: flex; justify-content: space-between; align-items: flex-end; }
-    .stat-block { display: flex; flex-direction: column; }
-    .stat-val { font-size: 1.2rem; font-weight: 900; line-height: 1; }
-    .stat-lbl { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; opacity: 0.7; letter-spacing: 1px; margin-top: 2px; }
-    .neo-progress-bg { width: 100%; height: 10px; background: #ffffff; border: 2px solid #111827; border-radius: 10px; overflow: hidden; }
-    .neo-progress-fill { height: 100%; background: #111827; transition: width 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-    .delete-btn { position: absolute; top: -10px; right: -10px; width: 36px; height: 36px; background: #FF4747; border: 2px solid #111827; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 2px 2px 0px #111827; color: white; opacity: 1; transition: all 0.2s; z-index: 10; touch-action: manipulation; }
-    .delete-btn:active { transform: translate(2px, 2px); box-shadow: 0px 0px 0px #111827; }
-    .edit-btn { position: absolute; top: -10px; right: 38px; width: 36px; height: 36px; background: var(--primary); border: 2px solid #111827; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 2px 2px 0px #111827; color: #111827; opacity: 1; transition: all 0.2s; z-index: 10; touch-action: manipulation; }
-    .edit-btn:active { transform: translate(2px, 2px); box-shadow: 0px 0px 0px #111827; }
-    .back-title { font-weight: 900; font-size: 1.5rem; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; text-align: center;}
-    .back-divider { width: 100%; border-top: 2px dashed #111827; margin-bottom: 15px; opacity: 0.5; }
-    .back-row { font-size: 0.85rem; font-weight: 800; display: flex; justify-content: space-between; margin-bottom: 10px;}
-    .back-row span:first-child { opacity: 0.6; text-transform: uppercase; }
-    .back-hint { margin-top: auto; font-size: 0.7rem; font-weight: 800; opacity: 0.6; letter-spacing: 1px; text-align: center; }
-    .tap-hint { display: none; }
-    @media (hover: none) and (pointer: coarse) { .tap-hint { display: inline; } .click-hint { display: none; } }
-    .confirm-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); z-index: 300; display: none; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
-    .confirm-modal-overlay.active { display: flex; opacity: 1; }
-    .confirm-modal { background: var(--panel-bg); border: 3px solid var(--text-main); border-radius: 16px; padding: 25px; width: 90%; max-width: 400px; box-shadow: 8px 8px 0px var(--text-main); transform: scale(0.9); transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-    .confirm-modal-overlay.active .confirm-modal { transform: scale(1); }
-    .confirm-title { font-size: 1.2rem; font-weight: 900; text-transform: uppercase; margin-bottom: 10px; color: var(--text-main); }
-    .confirm-desc { font-size: 0.9rem; font-weight: 600; color: var(--text-muted); margin-bottom: 25px; line-height: 1.4; }
-    .confirm-actions { display: flex; gap: 12px; }
-    .confirm-btn { flex: 1; padding: 12px; font-weight: 900; text-transform: uppercase; border-radius: 8px; cursor: pointer; border: 2px solid var(--text-main); transition: all 0.1s; font-size: 0.85rem; }
+
+    @keyframes shake {
+        0%,100% { transform: translateX(0); }
+        20%,60% { transform: translateX(-5px); }
+        40%,80% { transform: translateX(5px); }
+    }
+    .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+
+    /* ══ CONFIRM MODAL ══════════════════════════════════════════════ */
+    .confirm-modal-overlay {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,0.55);
+        backdrop-filter: blur(4px);
+        z-index: 300;
+        display: none; align-items: center; justify-content: center;
+    }
+    .confirm-modal-overlay.active { display: flex; }
+    .confirm-modal {
+        background: var(--panel-bg);
+        border: 3px solid var(--text-main);
+        border-radius: 20px;
+        padding: 28px;
+        width: 90%; max-width: 380px;
+        box-shadow: 8px 8px 0px var(--text-main);
+        animation: popIn 0.25s cubic-bezier(0.175,0.885,0.32,1.275);
+    }
+    @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .confirm-title { font-family: 'Fjalla One', sans-serif; font-size: 1.2rem; text-transform: uppercase; margin-bottom: 8px; color: var(--text-main); }
+    .confirm-desc { font-size: 0.88rem; font-weight: 600; color: var(--text-muted); margin-bottom: 22px; line-height: 1.5; }
+    .confirm-actions { display: flex; gap: 10px; }
+    .confirm-btn { flex: 1; padding: 12px; font-weight: 900; text-transform: uppercase; border-radius: 10px; cursor: pointer; border: 2px solid var(--text-main); font-size: 0.82rem; font-family: 'Fjalla One', sans-serif; transition: all 0.1s; }
     .btn-cancel { background: var(--bg-color); color: var(--text-main); box-shadow: 2px 2px 0px var(--text-main); }
     .btn-cancel:active { transform: translate(2px,2px); box-shadow: 0px 0px 0px transparent; }
-    .btn-purge { background: #FF4747; color: white; box-shadow: 2px 2px 0px var(--text-main); }
+    .btn-purge { background: #FF4747; color: white; box-shadow: 2px 2px 0px #7f1d1d; border-color: #7f1d1d; }
     .btn-purge:active { transform: translate(2px,2px); box-shadow: 0px 0px 0px transparent; }
-    @media (max-width: 480px) {
-        body { padding: 16px 14px; padding-bottom: 110px; }
-        .header { flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 20px; }
-        .header h1 { font-size: 1.9rem; }
-        .row-inputs { grid-template-columns: 1fr; gap: 0; }
-        .row-inputs .form-group:first-child { margin-bottom: 20px; }
-        .row-inputs-compact { grid-template-columns: 1fr; gap: 0; }
-        .row-inputs-compact .form-group:first-child { margin-bottom: 20px !important; }
-        .view-controls { flex-direction: column; align-items: stretch; gap: 12px; }
-        .view-toggle { width: 100%; display: flex; }
-        .view-btn { flex: 1; justify-content: center; font-size: 0.8rem; }
-        .card-face { padding: 16px; }
-        .card-title { font-size: 1.35rem; }
-        .card-scene { min-height: 210px; }
-        .back-title { font-size: 1.2rem; }
-        .back-row { font-size: 0.8rem; }
-        .cards-grid { grid-template-columns: 1fr; gap: 18px; }
-        .fab { bottom: max(24px, env(safe-area-inset-bottom, 24px)); right: 20px; width: 60px; height: 60px; }
+
+    /* ══ OFFLINE BANNER ═════════════════════════════════════════════ */
+    .offline-banner {
+        display: none;
+        background: #FFE873; color: #111827;
+        border-bottom: 3px solid #111827;
+        padding: 8px 24px;
+        font-family: 'Fjalla One', sans-serif;
+        font-weight: 900; font-size: 0.75rem;
+        text-transform: uppercase; letter-spacing: 1px;
+        flex-shrink: 0;
     }
-    @media (min-width: 481px) and (max-width: 768px) { body { padding: 20px; padding-bottom: 100px; } .header h1 { font-size: 2rem; } .cards-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; } }
-    @media (max-width: 768px) { html { background-color: var(--bg-color) !important; height: 100% !important; min-height: 100% !important; overflow: hidden !important; } body { padding-bottom: max(100px, calc(env(safe-area-inset-bottom) + 90px)) !important; height: 100% !important; overflow-y: auto !important; } }
-    @media (max-height: 500px) and (orientation: landscape) { .form-drawer { max-height: 95vh; } .form-panel { padding: 16px; } .form-panel-header { margin-bottom: 14px; } .form-group { margin-bottom: 12px; } }
-    </style>
+    .offline-banner.visible { display: block; }
+
+    /* ══ RESPONSIVE ═════════════════════════════════════════════════ */
+    @media (max-width: 600px) {
+        .form-drawer { top: auto; bottom: 0; left: 0; right: 0; width: 100%; max-height: 92vh; transform: translateY(110%) !important; border-radius: 20px 20px 0 0; }
+        .form-drawer.is-open { transform: translateY(0) !important; }
+        .form-panel { border-radius: 20px 20px 0 0; border-bottom: none; }
+        .page-header { height: 56px; padding: 0 16px; gap: 10px; }
+        .page-body { padding: 16px 14px 100px; }
+        .cards-grid { grid-template-columns: 1fr; gap: 16px; }
+        .row-inputs { grid-template-columns: 1fr; gap: 0; }
+        .row-inputs .form-group:first-child { margin-bottom: 14px; }
+    }
+    @media (max-width: 768px) {
+        html { background-color: var(--bg-color) !important; height: 100% !important; }
+        body { height: 100dvh; }
+        .page-body { padding-bottom: 120px !important; }
+    }
+    @media (max-width: 480px) {
+        .header-title { font-size: 0.9rem; }
+        .count-chip { display: none; }
+    }
+
+    /* tap hint */
+    .tap-hint { display: none; }
+    @media (hover: none) and (pointer: coarse) { .tap-hint { display: inline; } .click-hint { display: none; } }
+</style>
+
 </head>
 <body>
 
@@ -181,111 +829,122 @@
         <div class="confirm-desc" id="confirmDesc">All progress and flashcards attached to this mission will be permanently wiped from the Matrix.</div>
         <div class="confirm-actions">
             <button class="confirm-btn btn-cancel" onclick="cancelPurge()">Abort</button>
-            <button class="confirm-btn btn-purge" onclick="confirmPurge()">Execute Purge</button>
+            <button class="confirm-btn btn-purge" onclick="confirmPurge()">Purge</button>
         </div>
     </div>
 </div>
 
 <div class="form-drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
-
 <div class="form-drawer" id="formDrawer">
     <div class="form-panel" id="mainFormPanel">
         <div class="form-panel-header">
             <span class="form-panel-title" id="drawerTitle">New Mission</span>
-            <button class="form-close-btn" onclick="closeDrawer()" title="Close" aria-label="Close form">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <button class="form-close-btn" onclick="closeDrawer()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
         </div>
-        <div class="form-group">
-            <label class="form-label">Mission Directive</label>
-            <input type="text" id="f_subject" class="neo-input" placeholder="e.g. Organic Chemistry" autocomplete="off">
-        </div>
-        <div class="form-group">
-            <label class="form-label">Mission Details</label>
-            <textarea id="f_desc" class="neo-input" placeholder="e.g. Master nomenclature, reaction mechanisms..." maxlength="80"></textarea>
-        </div>
-        <div class="row-inputs">
-            <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label">Total Load</label>
-                <input type="number" id="f_work" class="neo-input" placeholder="0" min="1" inputmode="numeric">
-            </div>
-            <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label">Unit Type</label>
-                <div class="unit-toggle">
-                    <button class="unit-btn active" onclick="setUnit('Ch.')">Ch.</button>
-                    <button class="unit-btn" onclick="setUnit('Lec.')">Lec.</button>
-                    <button class="unit-btn" onclick="setUnit('MCQs')">MCQs</button>
-                </div>
-            </div>
-        </div>
-        <div class="row-inputs-compact" style="margin-top: 14px;">
-            <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label">Priority</label>
-                <div class="star-rating" id="f_stars" style="padding-bottom: 10px;">
-                    <svg class="star active" data-val="1" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                    <svg class="star active" data-val="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                    <svg class="star active" data-val="3" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                    <svg class="star" data-val="4" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                    <svg class="star" data-val="5" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                </div>
-            </div>
-            <div class="form-group" style="margin-bottom: 0;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                    <label class="form-label" style="margin-bottom: 0;">Deadline</label>
-                    <button type="button" id="btnLockToggle" class="lock-toggle-btn" style="min-height: 24px; padding: 2px 8px; font-size: 0.6rem;" onclick="toggleLockState()">
-                        <svg id="iconUnlock" viewBox="0 0 24 24" width="10" height="10" stroke="currentColor" stroke-width="3" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
-                        <svg id="iconLock" viewBox="0 0 24 24" width="10" height="10" stroke="currentColor" stroke-width="3" fill="none" style="display:none;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                        <span id="lockText">Elastic</span>
-                    </button>
-                </div>
-                <input type="date" id="f_deadline" class="neo-input">
-            </div>
-        </div>
-        <button class="submit-btn" id="submitBtn" style="margin-top: 18px;" onclick="deployTask()">Deploy Matrix</button>
+
+    <div class="form-group">
+        <label class="form-label">Mission Directive</label>
+        <input type="text" id="f_subject" class="neo-input" placeholder="e.g. Organic Chemistry" autocomplete="off">
     </div>
+    <div class="form-group">
+        <label class="form-label">Mission Details</label>
+        <textarea id="f_desc" class="neo-input" placeholder="e.g. Master nomenclature, reaction mechanisms..." maxlength="80"></textarea>
+    </div>
+
+    <div class="row-inputs">
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Total Load</label>
+            <input type="number" id="f_work" class="neo-input" placeholder="0" min="1" inputmode="numeric">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Unit Type</label>
+            <div class="unit-toggle">
+                <button class="unit-btn active" onclick="setUnit('Ch.')">Ch.</button>
+                <button class="unit-btn" onclick="setUnit('Lec.')">Lec.</button>
+                <button class="unit-btn" onclick="setUnit('MCQs')">MCQ</button>
+            </div>
+        </div>
+    </div>
+
+    <div style="margin-top:14px; display:grid; grid-template-columns:auto 1fr; gap:14px; align-items:end;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Priority</label>
+            <div class="star-rating" id="f_stars">
+                <svg class="star active" data-val="1" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                <svg class="star active" data-val="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                <svg class="star active" data-val="3" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                <svg class="star" data-val="4" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                <svg class="star" data-val="5" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <div class="deadline-row-form">
+                <label class="form-label" style="margin-bottom:0;">Deadline</label>
+                <button type="button" id="btnLockToggle" class="lock-toggle-btn" onclick="toggleLockState()">
+                    <svg id="iconUnlock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+                    <svg id="iconLock" viewBox="0 0 24 24" style="display:none;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <span id="lockText">Elastic</span>
+                </button>
+            </div>
+            <input type="date" id="f_deadline" class="neo-input">
+        </div>
+    </div>
+
+    <button class="submit-btn" id="submitBtn" onclick="deployTask()">Deploy Mission</button>
+</div>
+</div>
+
+<header class="page-header">
+    <div class="header-title">STRATEGY <span>BOARD</span></div>
+
+<div class="view-toggle-pill" id="viewTogglePill">
+    <div class="pill-track"></div>
+    <button class="pill-tab active" id="tabActive" onclick="switchView('active')">
+        <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+        Active
+    </button>
+    <button class="pill-tab" id="tabArchive" onclick="switchView('archive')">
+        <svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect></svg>
+        Archive
+    </button>
+</div>
+
+<div class="header-spacer"></div>
+
+<button class="header-search-btn" onclick="toggleSearchBar()" title="Search Matrix">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+</button>
+
+<span class="count-chip" id="countChip">0 Missions</span>
+
+<div class="sync-badge">
+    <span class="sync-dot" id="syncDot"></span>
+    <span id="syncText">Syncing</span>
+</div>
+</header>
+
+<div class="offline-banner" id="offlineBanner">⚡ Offline — Changes will sync when back online</div>
+
+<div class="page-body">
+    
+    <div class="search-container" id="searchContainer">
+        <input type="text" id="searchInput" class="search-input" placeholder="Find subject, load, or deadline..." oninput="renderTasks()">
+        <button class="search-clear-btn" onclick="clearSearch()" title="Clear">
+            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+    </div>
+
+    <div class="cards-grid" id="taskList"></div>
 </div>
 
 <button class="fab" id="fabBtn" onclick="toggleDrawer()" title="Add New Mission" aria-label="Add new mission">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </button>
 
-<div class="header">
-    <div>
-        <h1>Strategy Board</h1>
-        
-    </div>
-    <div class="sync-status" id="syncStatus">
-        <svg class="icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg> Syncing
-    </div>
-</div>
-
-<div class="offline-banner" id="offlineBanner">⚡ Offline Mode — Viewing cached data. Changes will sync when online.</div>
-
-<div class="board-area">
-    <div class="view-controls">
-        <div style="font-weight: 800; text-transform: uppercase; color: var(--text-muted); font-size: 0.8rem; letter-spacing: 1px;">
-            <span id="viewTitleText">Active Deployments</span>
-            <span style="opacity: 0.6; font-size: 0.7rem; margin-left: 8px;">
-                <span class="click-hint">(Dbl-Click for Intel)</span>
-                <span class="tap-hint">(Tap for Intel)</span>
-            </span>
-        </div>
-        <div class="view-toggle">
-            <button class="view-btn active" id="btnViewActive" onclick="switchView('active')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg> Active
-            </button>
-            <button class="view-btn" id="btnViewArchive" onclick="switchView('archive')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg> Archive
-            </button>
-        </div>
-    </div>
-    <div class="cards-grid" id="taskList"></div>
-</div>
-
 <script>
-    // ══════════════════════════════════════════════════════════════════════
-    // OFFLINE QUEUE & LOCAL CACHE
-    // ══════════════════════════════════════════════════════════════════════
+    // ══ OFFLINE QUEUE ══════════════════════════════════════════════════
     const OfflineQueue = {
         DB_NAME: 'focusos_queue', STORE: 'pending_ops', _db: null,
         async open() {
@@ -355,31 +1014,37 @@
         if (!navigator.onLine) return;
         let items; try { items = await OfflineQueue.getAllWithKeys(); } catch(e) { return; }
         if (!items || items.length === 0) return;
-        let flushed = 0;
         for (const item of items) {
-            try { await executeDbOp(item.value); await OfflineQueue.deleteKey(item.key); flushed++; }
-            catch(e) { console.warn('[FocusOS] Queue flush failed:', e); }
+            try { await executeDbOp(item.value); await OfflineQueue.deleteKey(item.key); } catch(e) {}
         }
-        if (flushed > 0) document.getElementById('syncStatus').innerHTML = `✅ Matrix Live`;
+    }
+
+    // ══ SYNC INDICATOR ════════════════════════════════════════════════
+    function setSyncStatus(state) {
+        const dot = document.getElementById('syncDot');
+        const text = document.getElementById('syncText');
+        dot.className = 'sync-dot';
+        if (state === 'live') { text.textContent = 'Live'; }
+        else if (state === 'syncing') { dot.classList.add('syncing'); text.textContent = 'Syncing'; }
+        else if (state === 'offline') { dot.classList.add('error'); text.textContent = 'Offline'; }
+        else if (state === 'error') { dot.classList.add('error'); text.textContent = 'Error'; }
     }
 
     window.addEventListener('online', () => {
         document.getElementById('offlineBanner').classList.remove('visible');
-        document.getElementById('syncStatus').innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg> Syncing`;
+        setSyncStatus('syncing');
         flushOfflineQueue().then(loadTasks);
     });
     window.addEventListener('offline', () => {
         document.getElementById('offlineBanner').classList.add('visible');
-        document.getElementById('syncStatus').innerHTML = `⚡ Offline`;
+        setSyncStatus('offline');
     });
 
-    // ══════════════════════════════════════════════════════════════════════
-    // MAIN APP
-    // ══════════════════════════════════════════════════════════════════════
+    // ══ MAIN APP ══════════════════════════════════════════════════════
     const SUPABASE_URL = 'https://xyhswdekhebcdmiyxfbo.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_UsVbr-Rs8gDF-H9OdXKQEQ_qpv0Pf2m';
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    
+
     let PROFILE_ID = null;
     let selectedUnit = 'Ch.';
     let selectedPriority = 3;
@@ -390,10 +1055,10 @@
     let drawerOpen = false;
     let taskToDelete = null;
 
-    const SUBJECT_COLORS = ['#6ba4ed', '#ff6b81', '#10b981', '#f59e0b', '#8a65e8', '#0ea5e9', '#ec407a', '#f43f5e', '#8b5cf6', '#14b8a6'];
+    const SUBJECT_COLORS = ['#6ba4ed','#ff6b81','#10b981','#f59e0b','#8a65e8','#0ea5e9','#ec407a','#f43f5e','#8b5cf6','#14b8a6'];
 
-    function heavyTap() { if (navigator.vibrate) navigator.vibrate(40); }
     function lightTap() { if (navigator.vibrate) navigator.vibrate(15); }
+    function heavyTap() { if (navigator.vibrate) navigator.vibrate(40); }
 
     function setupEventListeners() {
         document.querySelectorAll('.star').forEach(s => {
@@ -423,10 +1088,9 @@
 
         if (!navigator.onLine) {
             document.getElementById('offlineBanner').classList.add('visible');
-            document.getElementById('syncStatus').innerHTML = `⚡ Offline`;
-        }
+            setSyncStatus('offline');
+        } else { setSyncStatus('syncing'); }
 
-        // Load from cache immediately
         const cachedProfile = LocalCache.get('profile_' + PROFILE_ID);
         const cachedTasks = LocalCache.get('tasks');
         if (cachedProfile) document.documentElement.setAttribute('data-theme', cachedProfile.current_theme);
@@ -434,54 +1098,85 @@
 
         setupEventListeners();
 
-        if (navigator.onLine) {
-            document.getElementById('syncStatus').innerHTML = `☁️ Fetching...`;
-            await loadTasks();
-        }
+        if (navigator.onLine) await loadTasks();
 
         let d = new Date(); d.setDate(d.getDate() + 14);
-        document.getElementById('f_deadline').value = d.toISOString().split('T')[0];
+        document.getElementById('f_deadline').value = d.toISOString().split('T');
     }
 
-        async function checkAuth() {
-    try {
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if (user) {
-            PROFILE_ID = user.id;
-            localStorage.setItem('fos_last_user_id', user.id);
-            return true;
+    async function checkAuth() {
+        try {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (user) { PROFILE_ID = user.id; localStorage.setItem('fos_last_user_id', user.id); return true; }
+        } catch(err) {}
+        const lastId = localStorage.getItem('fos_last_user_id');
+        if (lastId) { PROFILE_ID = lastId; return true; }
+        if (window.parent !== window) window.parent.postMessage('auth_required', '*');
+        else window.location.href = 'login.html';
+        return false;
+    }
+
+    // ══ SEARCH ════════════════════════════════════════════════════════
+    function toggleSearchBar() {
+        lightTap();
+        const container = document.getElementById('searchContainer');
+        container.classList.toggle('active');
+        if(container.classList.contains('active')) {
+            document.getElementById('searchInput').focus();
+        } else {
+            document.getElementById('searchInput').value = '';
+            renderTasks();
         }
-    } catch (err) {
-        // Network error — fall through to offline check
     }
-    
-    // Offline: use cached identity set by parent (index.html)
-    const lastId = localStorage.getItem('fos_last_user_id');
-    if (lastId) {
-        PROFILE_ID = lastId;
-        return true;
-    }
-    
-    // No session — tell parent to redirect (NEVER redirect from iframe directly)
-    if (window.parent !== window) {
-        window.parent.postMessage('auth_required', '*');
-    } else {
-        window.location.href = 'login.html';
-    }
-    
-    return false;
-}
 
+    function clearSearch() {
+        lightTap();
+        document.getElementById('searchInput').value = '';
+        document.getElementById('searchInput').focus();
+        renderTasks();
+    }
 
+    function isFuzzyMatch(query, targetString) {
+        if (!query) return true;
+        query = query.toLowerCase().trim();
+        targetString = targetString.toLowerCase();
+        
+        // Exact substring hit
+        if (targetString.includes(query)) return true;
+
+        // Typo tolerance (allow up to 2 character edits for longer words)
+        const queryTerms = query.split(/\s+/);
+        const targetTerms = targetString.split(/\s+/);
+
+        return queryTerms.every(qTerm => {
+            return targetTerms.some(tTerm => {
+                if (tTerm.includes(qTerm)) return true;
+                if (qTerm.length > 3) {
+                    let edits = 0, i = 0, j = 0;
+                    while (i < qTerm.length && j < tTerm.length) {
+                        if (qTerm[i] !== tTerm[j]) {
+                            edits++;
+                            if (qTerm[i+1] === tTerm[j]) i++; 
+                            else if (qTerm[i] === tTerm[j+1]) j++; 
+                            else { i++; j++; } 
+                        } else { i++; j++; }
+                    }
+                    edits += (qTerm.length - i) + (tTerm.length - j);
+                    return edits <= 2; 
+                }
+                return false;
+            });
+        });
+    }
+
+    // ══ DRAWER ═══════════════════════════════════════════════════════
     function openDrawer() {
         drawerOpen = true;
-        const drawer = document.getElementById('formDrawer');
-        drawer.classList.add('is-open');
+        document.getElementById('formDrawer').classList.add('is-open');
         document.getElementById('drawerOverlay').classList.add('is-open');
         document.getElementById('fabBtn').classList.add('is-open');
-        document.body.style.overflow = 'hidden';
-        drawer.scrollTop = 0;
-        setTimeout(() => { if (!window.matchMedia('(hover: none) and (pointer: coarse)').matches) document.getElementById('f_subject').focus(); }, 400);
+        if (!window.matchMedia('(hover: none) and (pointer: coarse)').matches)
+            setTimeout(() => document.getElementById('f_subject').focus(), 400);
     }
 
     function closeDrawer() {
@@ -489,11 +1184,10 @@
         document.getElementById('formDrawer').classList.remove('is-open');
         document.getElementById('drawerOverlay').classList.remove('is-open');
         document.getElementById('fabBtn').classList.remove('is-open');
-        document.body.style.overflow = '';
         if (editingTaskId) {
             editingTaskId = null;
-            const btn = document.getElementById('submitBtn');
-            btn.innerText = "Deploy Matrix"; btn.style.background = "var(--primary)"; btn.style.color = "white";
+            document.getElementById('submitBtn').innerText = "Deploy Mission";
+            document.getElementById('submitBtn').style.cssText = '';
             document.getElementById('drawerTitle').innerText = "New Mission";
             clearForm();
         }
@@ -506,141 +1200,224 @@
     }
 
     function clearForm() {
-        document.getElementById('f_subject').value = ''; document.getElementById('f_desc').value = ''; document.getElementById('f_work').value = '';
+        document.getElementById('f_subject').value = '';
+        document.getElementById('f_desc').value = '';
+        document.getElementById('f_work').value = '';
         selectedPriority = 3;
         document.querySelectorAll('.star').forEach(st => st.classList.toggle('active', parseInt(st.getAttribute('data-val')) <= 3));
-        document.querySelectorAll('.neo-input').forEach(input => input.classList.remove('input-error', 'shake'));
+        document.querySelectorAll('.neo-input').forEach(i => i.classList.remove('input-error', 'shake'));
         setUnit('Ch.'); toggleLockState(false);
         let d = new Date(); d.setDate(d.getDate() + 14);
-        document.getElementById('f_deadline').value = d.toISOString().split('T')[0];
+        document.getElementById('f_deadline').value = d.toISOString().split('T');
     }
 
-    (function initSwipeToDismiss() {
-        let startY = 0, startScroll = 0, dragging = false;
-        const drawer = document.getElementById('formDrawer');
-        drawer.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; startScroll = drawer.scrollTop; dragging = true; }, { passive: true });
-        drawer.addEventListener('touchmove', (e) => {
-            if (!dragging || !drawerOpen) return;
-            const dy = e.touches[0].clientY - startY;
-            if (startScroll <= 0 && dy > 0) { const panel = drawer.querySelector('.form-panel'); if (panel) panel.style.transform = `translateY(${Math.min(dy * 0.5, 80)}px)`; }
-        }, { passive: true });
-        drawer.addEventListener('touchend', (e) => {
-            if (!dragging) return; dragging = false;
-            const panel = drawer.querySelector('.form-panel'); const dy = e.changedTouches[0].clientY - startY;
-            if (panel) panel.style.transform = '';
-            if (startScroll <= 0 && dy > 80) closeDrawer();
-        }, { passive: true });
-    })();
+    // ══ VIEW TOGGLE ═══════════════════════════════════════════════════
+    function switchView(mode) {
+        lightTap();
+        currentViewMode = mode;
+        const pill = document.getElementById('viewTogglePill');
+        pill.classList.toggle('archive-active', mode === 'archive');
+        document.getElementById('tabActive').classList.toggle('active', mode === 'active');
+        document.getElementById('tabArchive').classList.toggle('active', mode === 'archive');
+        renderTasks();
+    }
 
+    // ══ FORM HELPERS ══════════════════════════════════════════════════
     function setUnit(u) {
         lightTap(); selectedUnit = u;
-        document.querySelectorAll('.unit-btn').forEach(b => b.classList.toggle('active', b.innerText === u));
-    }
-
-    function switchView(mode) {
-        lightTap(); currentViewMode = mode;
-        document.getElementById('btnViewActive').classList.toggle('active', mode === 'active');
-        document.getElementById('btnViewArchive').classList.toggle('active', mode === 'archive');
-        document.getElementById('viewTitleText').innerText = mode === 'active' ? 'Active Deployments' : 'The Archive';
-        renderTasks();
+        document.querySelectorAll('.unit-btn').forEach(b => b.classList.toggle('active', b.innerText.trim() === u.trim() || (u === 'MCQs' && b.innerText.trim() === 'MCQ')));
     }
 
     function toggleLockState(forceState = null) {
         if (forceState !== null) isDeadlineLocked = forceState; else isDeadlineLocked = !isDeadlineLocked;
         const btn = document.getElementById('btnLockToggle');
-        if (isDeadlineLocked) { btn.classList.add('locked'); document.getElementById('lockText').innerText = 'Locked'; document.getElementById('iconUnlock').style.display = 'none'; document.getElementById('iconLock').style.display = 'block'; }
-        else { btn.classList.remove('locked'); document.getElementById('lockText').innerText = 'Elastic'; document.getElementById('iconUnlock').style.display = 'block'; document.getElementById('iconLock').style.display = 'none'; }
+        document.getElementById('lockText').innerText = isDeadlineLocked ? 'Locked' : 'Elastic';
+        document.getElementById('iconUnlock').style.display = isDeadlineLocked ? 'none' : 'block';
+        document.getElementById('iconLock').style.display = isDeadlineLocked ? 'block' : 'none';
+        btn.classList.toggle('locked', isDeadlineLocked);
     }
 
+    // ══ LOAD & RENDER ═════════════════════════════════════════════════
     async function loadTasks() {
-        if (!navigator.onLine) { renderTasks(); document.getElementById('syncStatus').innerHTML = `⚡ Offline`; return; }
+        if (!navigator.onLine) { renderTasks(); setSyncStatus('offline'); return; }
+        setSyncStatus('syncing');
         const { data, error } = await supabaseClient.from('study_tasks').select('*').order('priority', { ascending: false });
-        if (error) { console.error(error); return; }
+        if (error) { console.error(error); setSyncStatus('error'); return; }
         activeTasksData = data;
         LocalCache.set('tasks', data);
         renderTasks();
-        document.getElementById('syncStatus').innerHTML = `✅ Matrix Live`;
+        setSyncStatus('live');
         await flushOfflineQueue();
     }
 
     function renderTasks() {
-        const list = document.getElementById('taskList'); list.innerHTML = '';
-        let now = new Date().getTime(); let renderedCount = 0;
+        const list = document.getElementById('taskList');
+        list.innerHTML = '';
+        const now = new Date().getTime();
+        let renderedCount = 0;
         let uniqueSubjects = [...new Set(activeTasksData.map(t => t.subject))].sort();
-        const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-        const flipHint = isTouch ? 'TAP TO RETURN' : 'DBL-CLICK TO RETURN';
+        const searchQuery = document.getElementById('searchInput') ? document.getElementById('searchInput').value : '';
 
         activeTasksData.forEach(task => {
-            let remain = task.total_work - (task.completed_work || 0);
-            let isMastered = remain <= 0;
+            const remain = task.total_work - (task.completed_work || 0);
+            const isMastered = remain <= 0;
             if (currentViewMode === 'active' && isMastered) return;
             if (currentViewMode === 'archive' && !isMastered) return;
+
+            // Search Filter
+            const deadlineStr = new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const searchableData = `${task.subject} ${task.description || ''} ${task.total_work} ${task.unit} ${deadlineStr}`;
+            if (!isFuzzyMatch(searchQuery, searchableData)) return;
+
             renderedCount++;
-            let deadlineTime = new Date(task.deadline).getTime();
-            let daysLeft = Math.max(1, Math.ceil((deadlineTime - now) / (1000 * 3600 * 24)));
-            let dailyRate = isMastered ? 0 : Math.ceil(remain / daysLeft);
-            let progressPct = Math.min(100, Math.round(((task.completed_work || 0) / task.total_work) * 100));
-            let subjectIdx = uniqueSubjects.indexOf(task.subject);
-            let cardColor = isMastered ? '#E5E7EB' : SUBJECT_COLORS[subjectIdx % SUBJECT_COLORS.length];
-            let contentOpacity = isMastered ? 'opacity: 0.4;' : 'opacity: 1;';
-            let deadlineStr = new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-            let lockIconHTML = task.is_locked ? `<svg viewBox="0 0 24 24" style="width:12px; height:12px; stroke:currentColor; stroke-width:3; fill:none; margin-left:6px; display:inline-block; vertical-align:middle;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>` : '';
-            let pendingLoad = Math.max(0, task.total_work - (task.completed_work || 0));
-            let invMins = task.time_invested || 0; let invHrs = Math.floor(invMins / 60); let invRem = invMins % 60;
-            let timeInvestedStr = invHrs > 0 ? `${invHrs}h ${invRem}m` : `${invRem}m`;
+
+            const deadlineTime = new Date(task.deadline).getTime();
+            const daysLeft = Math.max(0, Math.ceil((deadlineTime - now) / (1000 * 3600 * 24)));
+            const dailyRate = isMastered ? 0 : Math.ceil(remain / Math.max(1, daysLeft));
+            const progressPct = Math.min(100, Math.round(((task.completed_work || 0) / task.total_work) * 100));
+            const subjectIdx = uniqueSubjects.indexOf(task.subject);
+            const cardColor = isMastered ? '#c8d0dd' : SUBJECT_COLORS[subjectIdx % SUBJECT_COLORS.length];
+            const contentOpacity = isMastered ? '0.45' : '1';
+
+            const lockIconHTML = task.is_locked
+                ? `<div class="lock-badge">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Locked
+                   </div>` : '';
+
+            // Stars HTML
             let starsHTML = '';
-            for(let i=0; i<task.priority; i++) starsHTML += `<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
-            let editBtnHTML = isMastered ? '' : `<button class="edit-btn" title="Edit Parameters" onclick="editTask('${task.id}', event)" aria-label="Edit task"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></button>`;
-            let card = document.createElement('div');
+            for (let i = 0; i < task.priority; i++) {
+                starsHTML += `<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
+            }
+
+            const editBtnHTML = isMastered ? '' : `<button class="edit-btn" title="Edit" onclick="editTask('${task.id}', event)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>`;
+
+            const masteredBadge = isMastered ? `<div class="mastered-overlay">✓ Mastered</div>` : '';
+
+            const card = document.createElement('div');
             card.className = 'card-scene';
-            card.addEventListener('click', function(e) { if (e.target.closest('.delete-btn') || e.target.closest('.edit-btn')) return; lightTap(); this.classList.toggle('is-flipped'); });
+            card.addEventListener('click', function(e) {
+                if (e.target.closest('.delete-btn') || e.target.closest('.edit-btn')) return;
+                lightTap();
+                this.classList.toggle('is-flipped');
+            });
+
             card.innerHTML = `
-                <div class="card-flipper">
-                    <div class="card-face card-face-front" style="background-color: ${cardColor}">
-                        <div style="flex: 1; display: flex; flex-direction: column; ${contentOpacity}">
-                            <div class="card-header"><div class="card-pill">${task.total_work} ${task.unit}</div><div class="card-stars">${starsHTML}</div></div>
-                            <div class="card-title">${task.subject}</div>
-                            <div class="card-desc">${task.description || 'No specific parameters defined.'}</div>
-                            <div class="card-footer">
-                                <div class="neo-progress-bg"><div class="neo-progress-fill" style="width: ${progressPct}%"></div></div>
-                                <div class="card-stats">
-                                    <div class="stat-block"><div class="stat-val">${isMastered ? '-' : daysLeft}</div><div class="stat-lbl">Days Left</div></div>
-                                    <div class="stat-block" style="text-align:center;"><div class="stat-val">${dailyRate}</div><div class="stat-lbl">${task.unit}/Day</div></div>
-                                    <div class="stat-block" style="text-align:right;"><div class="stat-val">${progressPct}%</div><div class="stat-lbl">Mastery</div></div>
+            <div class="card-flipper">
+
+                <div class="card-face card-face-front" style="background-color:${cardColor};">
+                    ${masteredBadge}
+                    <div style="opacity:${contentOpacity}; display:flex; flex-direction:column; flex:1;">
+                        <div class="card-header">
+                            <div class="card-unit-pill">${task.total_work} ${task.unit}</div>
+                            <div class="card-stars">${starsHTML}</div>
+                        </div>
+                        <div class="card-subject">${task.subject}</div>
+                        <div class="card-desc">${task.description || 'No parameters defined.'}</div>
+                        <div class="card-footer">
+                            <div class="progress-row">
+                                <span class="progress-pct">${task.completed_work || 0} / ${task.total_work} ${task.unit}</span>
+                                <span class="progress-pct">${progressPct}%</span>
+                            </div>
+                            <div class="neo-progress-bg">
+                                <div class="neo-progress-fill" style="width:${progressPct}%;"></div>
+                            </div>
+                            <div class="card-stats">
+                                <div class="stat-block">
+                                    <div class="stat-val">${isMastered ? '∞' : daysLeft}</div>
+                                    <div class="stat-lbl">Days Left</div>
+                                </div>
+                                <div class="stat-block">
+                                    <div class="stat-val">${dailyRate}</div>
+                                    <div class="stat-lbl">${task.unit}/Day</div>
+                                </div>
+                                <div class="stat-block">
+                                    <div class="stat-val">${remain > 0 ? remain : '—'}</div>
+                                    <div class="stat-lbl">Remaining</div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="card-face card-face-back" style="background-color: ${cardColor}">
-                        <button class="delete-btn" title="${isMastered ? 'Purge from Archive' : 'Delete Mission'}" onclick="deleteTask('${task.id}', event)" aria-label="Delete task">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </button>
-                        ${editBtnHTML}
-                        <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; ${contentOpacity}">
-                            <div class="back-title">Intel</div>
-                            <div class="back-divider"></div>
-                            <div style="width: 100%;">
-                                <div class="back-row"><span>Deadline</span> <span style="display:flex; align-items:center;">${deadlineStr}${lockIconHTML}</span></div>
-                                <div class="back-row"><span>Time Invested</span> <span style="color: #111827; font-weight: 900;">${timeInvestedStr}</span></div>
-                                <div class="back-row"><span>Completed</span> <span>${task.completed_work || 0} ${task.unit}</span></div>
-                                <div class="back-row" style="margin-top: 10px; border-top: 1px solid rgba(17,24,39,0.2); padding-top: 10px;"><span>Pending Work</span> <span style="color: #111827; font-weight: 900;">${pendingLoad} ${task.unit}</span></div>
-                            </div>
-                            <div class="back-hint" style="margin-top: 15px;">( ${flipHint} )</div>
+                </div>
+
+                <div class="card-face card-face-back" style="background-color:${cardColor};">
+                    <button class="delete-btn" title="Delete" onclick="deleteTask('${task.id}', event)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                    ${editBtnHTML}
+
+                    <div class="back-inner" style="opacity:${contentOpacity};">
+                        <div class="back-header">
+                            <span class="back-title">Mission Intel</span>
+                            ${lockIconHTML}
                         </div>
+
+                        <div class="intel-grid">
+                            <div class="intel-cell">
+                                <div class="intel-cell-val">${progressPct}%</div>
+                                <div class="intel-cell-lbl">Mastery</div>
+                            </div>
+                            <div class="intel-cell">
+                                <div class="intel-cell-val">${dailyRate}</div>
+                                <div class="intel-cell-lbl">${task.unit} / Day</div>
+                            </div>
+                            <div class="intel-cell">
+                                <div class="intel-cell-val">${task.completed_work || 0}</div>
+                                <div class="intel-cell-lbl">Completed</div>
+                            </div>
+                            <div class="intel-cell">
+                                <div class="intel-cell-val">${remain > 0 ? remain : '0'}</div>
+                                <div class="intel-cell-lbl">Remaining</div>
+                            </div>
+                        </div>
+
+                        <div class="deadline-row">
+                            <div class="deadline-icon">
+                                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            </div>
+                            <div class="deadline-info">
+                                <div class="deadline-label">Deadline</div>
+                                <div class="deadline-value">${deadlineStr}</div>
+                            </div>
+                            <div style="font-family:'Albert Sans',sans-serif;font-variant-numeric:tabular-nums;font-size:0.75rem;font-weight:900;color:#111827;opacity:0.6;">${isMastered ? '✓' : daysLeft + 'd'}</div>
+                        </div>
+
                     </div>
-                </div>`;
+                </div>
+
+            </div>`;
             list.appendChild(card);
         });
 
+        // Update count chip
+        const chipEl = document.getElementById('countChip');
+        chipEl.textContent = renderedCount === 1 ? '1 Mission' : `${renderedCount} Missions`;
+
         if (renderedCount === 0) {
-            if (currentViewMode === 'active') {
-                list.innerHTML = `<div class="empty-state" style="cursor: pointer; transition: all 0.2s;" onclick="toggleDrawer()"><div style="font-size: 2rem; margin-bottom: 10px;">⚡</div>Matrix is clear.<br><span style="color: var(--primary); text-decoration: underline;">Click to Deploy New Mission</span></div>`;
+            if (searchQuery) {
+                list.innerHTML = `<div class="empty-state" onclick="clearSearch()">
+                    <span class="empty-state-icon">🔍</span>
+                    No intel found.<br>
+                    <span style="color:var(--primary);font-size:0.8rem;">Tap to clear search</span>
+                </div>`;
+            } else if (currentViewMode === 'active') {
+                list.innerHTML = `<div class="empty-state" onclick="toggleDrawer()">
+                    <span class="empty-state-icon">⚡</span>
+                    Matrix is clear.<br>
+                    <span style="color:var(--primary);font-size:0.8rem;">Tap to deploy first mission</span>
+                </div>`;
             } else {
-                list.innerHTML = `<div class="empty-state">Archive is empty. No completed missions.</div>`;
+                list.innerHTML = `<div class="empty-state">
+                    <span class="empty-state-icon">🗄️</span>
+                    Archive is empty.<br>
+                    <span style="font-size:0.8rem;opacity:0.6;">No completed missions yet.</span>
+                </div>`;
             }
         }
     }
 
+    // ══ EDIT ══════════════════════════════════════════════════════════
     function editTask(id, event) {
         event.stopPropagation();
         const task = activeTasksData.find(t => t.id === id);
@@ -655,11 +1432,14 @@
         toggleLockState(task.is_locked || false);
         editingTaskId = id;
         const btn = document.getElementById('submitBtn');
-        btn.innerText = "Update Parameters"; btn.style.background = "#FFB86B"; btn.style.color = "#111827";
+        btn.innerText = "Update Mission";
+        btn.style.background = "#FFB86B";
+        btn.style.color = "#111827";
         document.getElementById('drawerTitle').innerText = "Edit Mission";
         openDrawer();
     }
 
+    // ══ DEPLOY ════════════════════════════════════════════════════════
     async function deployTask() {
         heavyTap();
         const subjectInput = document.getElementById('f_subject');
@@ -667,48 +1447,51 @@
         const deadlineInput = document.getElementById('f_deadline');
         const subject = subjectInput.value.trim();
         const desc = document.getElementById('f_desc').value.trim();
-        const workStr = workInput.value;
-        const work = parseInt(workStr);
+        const work = parseInt(workInput.value);
         const deadline = deadlineInput.value;
         let isValid = true;
+
         [subjectInput, workInput, deadlineInput].forEach(el => { el.classList.remove('input-error', 'shake'); void el.offsetWidth; });
         if (!subject) { subjectInput.classList.add('input-error'); isValid = false; }
-        if (!workStr || isNaN(work) || work < 1) { workInput.classList.add('input-error'); isValid = false; }
+        if (!workInput.value || isNaN(work) || work < 1) { workInput.classList.add('input-error'); isValid = false; }
         if (!deadline) { deadlineInput.classList.add('input-error'); isValid = false; }
-        if (!isValid) { const panel = document.getElementById('mainFormPanel'); panel.classList.remove('shake'); void panel.offsetWidth; panel.classList.add('shake'); return; }
+        if (!isValid) {
+            const panel = document.getElementById('mainFormPanel');
+            panel.classList.remove('shake'); void panel.offsetWidth; panel.classList.add('shake');
+            return;
+        }
 
         if (editingTaskId) {
             const updateData = { title: subject, subject, description: desc, total_work: work, unit: selectedUnit, priority: selectedPriority, deadline, is_locked: isDeadlineLocked };
-            // Optimistic update
             const idx = activeTasksData.findIndex(t => t.id === editingTaskId);
             if (idx > -1) { activeTasksData[idx] = { ...activeTasksData[idx], ...updateData }; LocalCache.set('tasks', activeTasksData); }
             await safeDbWrite({ type: 'update', table: 'study_tasks', data: updateData, match: { id: editingTaskId } });
             editingTaskId = null;
-            const btn = document.getElementById('submitBtn');
-            btn.innerText = "Deploy Matrix"; btn.style.background = "var(--primary)"; btn.style.color = "white";
+            document.getElementById('submitBtn').innerText = "Deploy Mission";
+            document.getElementById('submitBtn').style.cssText = '';
             document.getElementById('drawerTitle').innerText = "New Mission";
         } else {
             const newTask = { user_id: PROFILE_ID, title: subject, subject, description: desc, total_work: work, completed_work: 0, unit: selectedUnit, priority: selectedPriority, deadline, time_invested: 0, is_locked: isDeadlineLocked };
-            // Optimistic insert with temp ID
             const tempId = 'temp_' + Date.now();
             activeTasksData.unshift({ ...newTask, id: tempId });
             LocalCache.set('tasks', activeTasksData);
             renderTasks();
-            const result = await safeDbWrite({ type: 'insert', table: 'study_tasks', data: newTask });
-            // Reload to get real IDs if online
+            await safeDbWrite({ type: 'insert', table: 'study_tasks', data: newTask });
             if (navigator.onLine) setTimeout(loadTasks, 500);
         }
 
         closeDrawer(); clearForm();
-        if(currentViewMode === 'archive') switchView('active');
+        if (currentViewMode === 'archive') switchView('active');
         else renderTasks();
     }
 
+    // ══ DELETE ════════════════════════════════════════════════════════
     function deleteTask(id, event) {
         event.stopPropagation(); heavyTap();
         taskToDelete = id;
-        let isArchive = currentViewMode === 'archive';
-        document.getElementById('confirmDesc').innerText = isArchive ? "Purge this operation from the Archive? Its flashcards will be permanently destroyed." : "Terminate this deployment? All progress and flashcards will be wiped.";
+        document.getElementById('confirmDesc').innerText = currentViewMode === 'archive'
+            ? 'Purge this operation from the Archive? Flashcards will be permanently destroyed.'
+            : 'Terminate this deployment? All progress and flashcards will be wiped.';
         document.getElementById('confirmModalOverlay').classList.add('active');
     }
 
@@ -721,17 +1504,17 @@
     async function confirmPurge() {
         heavyTap(); if (!taskToDelete) return;
         const btn = document.querySelector('.btn-purge');
-        const origText = btn.innerText; btn.innerText = "PURGING..."; btn.style.pointerEvents = "none";
-        // Optimistic removal
+        btn.textContent = 'Purging…'; btn.style.pointerEvents = 'none';
         activeTasksData = activeTasksData.filter(t => t.id !== taskToDelete);
         LocalCache.set('tasks', activeTasksData); renderTasks();
         await safeDbWrite({ type: 'delete', table: 'study_tasks', match: { id: taskToDelete } });
         if (navigator.onLine) setTimeout(loadTasks, 300);
-        btn.innerText = origText; btn.style.pointerEvents = "auto";
+        btn.textContent = 'Purge'; btn.style.pointerEvents = 'auto';
         cancelPurge();
     }
 
     init();
 </script>
+
 </body>
 </html>
