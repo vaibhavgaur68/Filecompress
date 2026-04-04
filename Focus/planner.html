@@ -249,12 +249,26 @@
     .empty-state-icon { font-size: 2.5rem; display: block; margin-bottom: 12px; }
 
     /* ══ FLIP CARD ══════════════════════════════════════════════════ */
+            @keyframes cardPop {
+        from { opacity: 0; transform: translateY(15px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
     .card-scene {
         perspective: 1000px;
         user-select: none;
-        height: 220px; /* CRUSHED to ultra-density */
+        height: 220px;
         cursor: pointer;
     }
+    
+    .card-scene.animate-in {
+        animation: cardPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+    }
+    .card-scene.animate-in:nth-child(1) { animation-delay: 0.05s; }
+    .card-scene.animate-in:nth-child(2) { animation-delay: 0.1s; }
+    .card-scene.animate-in:nth-child(3) { animation-delay: 0.15s; }
+    .card-scene.animate-in:nth-child(4) { animation-delay: 0.2s; }
+
 
     .card-flipper {
         position: relative;
@@ -818,6 +832,20 @@
     /* tap hint */
     .tap-hint { display: none; }
     @media (hover: none) and (pointer: coarse) { .tap-hint { display: inline; } .click-hint { display: none; } }
+
+    /* ══ SKELETON LOADERS ══════════════════════════════════════════ */
+    .skel-sweep {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, transparent 0%, rgba(128,128,128,0.07) 50%, transparent 100%);
+        animation: skel 1.5s infinite;
+        z-index: 10;
+    }
+    @keyframes skel { 
+        0% { transform: translateX(-100%); } 
+        100% { transform: translateX(100%); } 
+    }
+
 </style>
 
 </head>
@@ -936,7 +964,36 @@
         </button>
     </div>
 
-    <div class="cards-grid" id="taskList"></div>
+        <div class="cards-grid" id="taskList">
+        <div class="card-scene" style="animation: none;">
+            <div class="card-face" style="background-color: var(--panel-bg); border-color: var(--border-color); overflow: hidden; position: relative;">
+                <div class="skel-sweep"></div>
+                <div style="width: 60px; height: 20px; background: var(--border-color); border-radius: 50px; margin-bottom: 16px;"></div>
+                <div style="width: 80%; height: 24px; background: var(--border-color); border-radius: 4px; margin-bottom: 8px;"></div>
+                <div style="width: 50%; height: 14px; background: var(--border-color); border-radius: 4px; margin-bottom: auto;"></div>
+                <div style="width: 100%; height: 6px; background: var(--border-color); border-radius: 50px; margin-top: 20px;"></div>
+            </div>
+        </div>
+        <div class="card-scene" style="animation: none;">
+            <div class="card-face" style="background-color: var(--panel-bg); border-color: var(--border-color); overflow: hidden; position: relative;">
+                <div class="skel-sweep"></div>
+                <div style="width: 60px; height: 20px; background: var(--border-color); border-radius: 50px; margin-bottom: 16px;"></div>
+                <div style="width: 70%; height: 24px; background: var(--border-color); border-radius: 4px; margin-bottom: 8px;"></div>
+                <div style="width: 40%; height: 14px; background: var(--border-color); border-radius: 4px; margin-bottom: auto;"></div>
+                <div style="width: 100%; height: 6px; background: var(--border-color); border-radius: 50px; margin-top: 20px;"></div>
+            </div>
+        </div>
+        <div class="card-scene" style="animation: none;">
+            <div class="card-face" style="background-color: var(--panel-bg); border-color: var(--border-color); overflow: hidden; position: relative;">
+                <div class="skel-sweep"></div>
+                <div style="width: 60px; height: 20px; background: var(--border-color); border-radius: 50px; margin-bottom: 16px;"></div>
+                <div style="width: 90%; height: 24px; background: var(--border-color); border-radius: 4px; margin-bottom: 8px;"></div>
+                <div style="width: 60%; height: 14px; background: var(--border-color); border-radius: 4px; margin-bottom: auto;"></div>
+                <div style="width: 100%; height: 6px; background: var(--border-color); border-radius: 50px; margin-top: 20px;"></div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <button class="fab" id="fabBtn" onclick="toggleDrawer()" title="Add New Mission" aria-label="Add new mission">
@@ -1050,10 +1107,12 @@
     let selectedPriority = 3;
     let editingTaskId = null;
     let activeTasksData = [];
-    let currentViewMode = 'active';
+        let currentViewMode = 'active';
     let isDeadlineLocked = false;
     let drawerOpen = false;
     let taskToDelete = null;
+    let isInitialRender = true;
+
 
     const SUBJECT_COLORS = ['#6ba4ed','#ff6b81','#10b981','#f59e0b','#8a65e8','#0ea5e9','#ec407a','#f43f5e','#8b5cf6','#14b8a6'];
 
@@ -1238,17 +1297,24 @@
     }
 
     // ══ LOAD & RENDER ═════════════════════════════════════════════════
-    async function loadTasks() {
+        async function loadTasks() {
         if (!navigator.onLine) { renderTasks(); setSyncStatus('offline'); return; }
         setSyncStatus('syncing');
         const { data, error } = await supabaseClient.from('study_tasks').select('*').order('priority', { ascending: false });
         if (error) { console.error(error); setSyncStatus('error'); return; }
+        
+        const dataChanged = JSON.stringify(activeTasksData) !== JSON.stringify(data);
         activeTasksData = data;
         LocalCache.set('tasks', data);
-        renderTasks();
+        
+        if (dataChanged) {
+            renderTasks();
+        }
+        
         setSyncStatus('live');
         await flushOfflineQueue();
     }
+
 
     function renderTasks() {
         const list = document.getElementById('taskList');
@@ -1295,9 +1361,10 @@
 
             const masteredBadge = isMastered ? `<div class="mastered-overlay">✓ Mastered</div>` : '';
 
-            const card = document.createElement('div');
-            card.className = 'card-scene';
+                        const card = document.createElement('div');
+            card.className = `card-scene ${isInitialRender ? 'animate-in' : ''}`;
             card.addEventListener('click', function(e) {
+
                 if (e.target.closest('.delete-btn') || e.target.closest('.edit-btn')) return;
                 lightTap();
                 this.classList.toggle('is-flipped');
@@ -1407,7 +1474,7 @@
                     Matrix is clear.<br>
                     <span style="color:var(--primary);font-size:0.8rem;">Tap to deploy first mission</span>
                 </div>`;
-            } else {
+                        } else {
                 list.innerHTML = `<div class="empty-state">
                     <span class="empty-state-icon">🗄️</span>
                     Archive is empty.<br>
@@ -1415,7 +1482,10 @@
                 </div>`;
             }
         }
+        
+        isInitialRender = false;
     }
+
 
     // ══ EDIT ══════════════════════════════════════════════════════════
     function editTask(id, event) {
