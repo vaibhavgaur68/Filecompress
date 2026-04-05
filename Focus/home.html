@@ -9,12 +9,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
 
-
 <link rel="stylesheet" href="themes.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="matrix-engine.js"></script>
-
 
 <script>
     // Synchronous theme pre-loader to stop the iframe flash
@@ -31,7 +29,6 @@
         }
     } catch(e) {}
 </script>
-
 
 <style>
 
@@ -584,21 +581,6 @@ transition: height 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 .hm-day-pill.empty .hm-pill-bar-fill  { background: var(--border-color); }
 .hm-day-pill.past .hm-pill-bar-fill   { background: var(--text-muted); }
 
-.hm-pill-cl {
-font-size: 0.48rem;
-font-weight: 900;
-font-family: 'Courier New', monospace;
-text-transform: uppercase;
-letter-spacing: 0.5px;
-color: var(--text-muted);
-line-height: 1;
-}
-.hm-day-pill.today .hm-pill-cl { color: rgba(17,24,39,0.6); }
-.hm-day-pill.low .hm-pill-cl  { color: #10b981; }
-.hm-day-pill.mid .hm-pill-cl  { color: #f59e0b; }
-.hm-day-pill.high .hm-pill-cl { color: #FF4747; }
-.hm-day-pill.over .hm-pill-cl { color: #8b5cf6; }
-
 .hm-month-sep {
 flex-shrink: 0;
 display: flex;
@@ -884,10 +866,8 @@ min-height: 430px;
     }
 </style>
 
-
 </head>
 <body>
-
 
 <div class="page-header" id="pageHeader">
     <div class="header-title-group">
@@ -895,25 +875,28 @@ min-height: 430px;
         <div class="page-header-sub" id="greetingText">Analyzing Matrix Timelines...</div>
     </div>
 
-    <div class="header-spacer"></div>
 
-    <button class="intel-trigger-btn" onclick="openIntelReport()">
-        <svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 12 12 17 22 12"></polyline><polyline points="2 17 12 22 22 17"></polyline></svg>
-        <span>Weekly Intel</span>
-    </button>
+<div class="header-spacer"></div>
 
-    <button class="notif-bell-btn" id="notifBellBtn" onclick="handleNotifBell()" title="Alerts">
-        <svg viewBox="0 0 24 24">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-        </svg>
-        <span class="notif-red-dot" id="notifRedDot"></span>
-    </button>
+<button class="intel-trigger-btn" onclick="openIntelReport()">
+    <svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 12 12 17 22 12"></polyline><polyline points="2 17 12 22 22 17"></polyline></svg>
+    <span>Weekly Intel</span>
+</button>
 
-    <div class="live-pill" id="syncStatus">
-        <span class="live-dot connecting" id="liveDot"></span>
-        <span id="liveText">Syncing</span>
-    </div>
+<button class="notif-bell-btn" id="notifBellBtn" onclick="handleNotifBell()" title="Alerts">
+    <svg viewBox="0 0 24 24">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+    </svg>
+    <span class="notif-red-dot" id="notifRedDot"></span>
+</button>
+
+<div class="live-pill" id="syncStatus">
+    <span class="live-dot connecting" id="liveDot"></span>
+    <span id="liveText">Syncing</span>
+</div>
+
+
 </div>
 
 <div class="page-body">
@@ -971,117 +954,119 @@ min-height: 430px;
         <p id="burnMsg" style="text-align: center; font-size: 0.85rem; color: var(--primary); font-weight: 800; margin-top: 15px;"></p>
     </div>
 
-    <div class="card-scene w-span-8" id="hmFlipCard" ondblclick="if (!event.target.closest('.hm-nav-btn') && !event.target.closest('.hm-cell')) { this.classList.toggle('is-flipped'); if(this.classList.contains('is-flipped')) buildHeatmap(); }">
+
+<div class="card-scene w-span-8" id="hmFlipCard" ondblclick="if (!event.target.closest('.hm-nav-btn') && !event.target.closest('.hm-cell')) { this.classList.toggle('is-flipped'); if(this.classList.contains('is-flipped')) buildHeatmap(); }">
 
 
-        <div class="card-flipper">
-            <div class="wedge-card card-face card-face-front">
-                <div class="chart-title"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg> 7-Day Cognitive Forecast</div>
-                <div class="chart-subtitle">Predicted workload.</div>
-                <div class="bar-wrapper"><canvas id="elasticChart"></canvas></div>
-                <div style="text-align: center; font-size: 0.7rem; font-weight: 800; opacity: 0.5; margin-top: 10px; text-transform: uppercase; letter-spacing: 1px;">(double-Tap for Heatmap)</div>
-            </div>
+    <div class="card-flipper">
+        <div class="wedge-card card-face card-face-front">
+            <div class="chart-title"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg> 7-Day Cognitive Forecast</div>
+            <div class="chart-subtitle">Predicted workload.</div>
+            <div class="bar-wrapper"><canvas id="elasticChart"></canvas></div>
+            <div style="text-align: center; font-size: 0.7rem; font-weight: 800; opacity: 0.5; margin-top: 10px; text-transform: uppercase; letter-spacing: 1px;">(double-Tap for Heatmap)</div>
+        </div>
 
-            <div class="wedge-card card-face card-face-back" style="padding: 0; overflow: hidden;">
-                <div class="heatmap-container">
+        <div class="wedge-card card-face card-face-back" style="padding: 0; overflow: hidden;">
+            <div class="heatmap-container">
 
-                    <div class="hm-header">
-                        <div class="hm-header-left">
-                            <div>
-                                <div class="hm-month-label" id="hmMonthLabel">LOADING</div>
-                                <div class="hm-year-badge" id="hmYearLabel">2026 · STRATEGY MATRIX</div>
-                            </div>
-                        </div>
-                        <div class="hm-nav">
-                            <button class="hm-nav-btn" id="btnPrevHM" onclick="event.stopPropagation(); changeHMMonth(-1)">←</button>
-                            <button class="hm-nav-btn" id="btnNextHM" onclick="event.stopPropagation(); changeHMMonth(1)">→</button>
+                <div class="hm-header">
+                    <div class="hm-header-left">
+                        <div>
+                            <div class="hm-month-label" id="hmMonthLabel">LOADING</div>
+                            <div class="hm-year-badge" id="hmYearLabel">2026 · STRATEGY MATRIX</div>
                         </div>
                     </div>
-
-                    <div class="hm-stats-strip">
-                        <div class="hm-stat">
-                            <div class="hm-stat-val stat-green" id="hmStatActive">0</div>
-                            <div class="hm-stat-lbl">Active days</div>
-                        </div>
-                        <div class="hm-stat">
-                            <div class="hm-stat-val stat-amber" id="hmStatPeak">0.0</div>
-                            <div class="hm-stat-lbl">Peak CL</div>
-                        </div>
-                        <div class="hm-stat">
-                            <div class="hm-stat-val stat-red" id="hmStatOverload">0</div>
-                            <div class="hm-stat-lbl">Overload Days</div>
-                        </div>
+                    <div class="hm-nav">
+                        <button class="hm-nav-btn" id="btnPrevHM" onclick="event.stopPropagation(); changeHMMonth(-1)">←</button>
+                        <button class="hm-nav-btn" id="btnNextHM" onclick="event.stopPropagation(); changeHMMonth(1)">→</button>
                     </div>
-
-                    <div class="hm-body-inner">
-                        <div class="hm-grid-area">
-                            <div class="hm-row-labels">
-                                <div class="hm-row-label weekend">S</div>
-                                <div class="hm-row-label">M</div>
-                                <div class="hm-row-label">T</div>
-                                <div class="hm-row-label">W</div>
-                                <div class="hm-row-label">T</div>
-                                <div class="hm-row-label">F</div>
-                                <div class="hm-row-label weekend">S</div>
-                            </div>
-                            <div class="hm-grid" id="hmGrid"></div>
-                        </div>
-
-                        <div class="hm-legend">
-                            <div class="hm-leg-item">
-                                <div class="hm-leg-swatch" style="background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.2);"></div>
-                                <span>Clear</span>
-                            </div>
-                            <div class="hm-leg-item leg-low">
-                                <div class="hm-leg-swatch" style="background:#10b981;border-color:#10b981;"></div>
-                                <span>&lt;50%</span>
-                            </div>
-                            <div class="hm-leg-item leg-mid">
-                                <div class="hm-leg-swatch" style="background:#f59e0b;border-color:#f59e0b;"></div>
-                                <span>&lt;75%</span>
-                            </div>
-                            <div class="hm-leg-item leg-high">
-                                <div class="hm-leg-swatch" style="background:#FF4747;border-color:#FF4747;"></div>
-                                <span>≥75%</span>
-                            </div>
-                            <div class="hm-leg-item leg-over">
-                                <div class="hm-leg-swatch" style="background:#8b5cf6;border-color:#8b5cf6;"></div>
-                                <span>&gt;100%</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    
-
-                    <div class="hm-desktop-hint" style="text-align: center; font-size: 0.55rem; font-weight: 900; opacity: 0.4; padding: 6px; border-top: 2px solid var(--border-color); text-transform: uppercase; letter-spacing: 1px; background: var(--panel-bg); flex-shrink: 0;">(TAP TO RETURN)</div>
                 </div>
+
+                <div class="hm-stats-strip">
+                    <div class="hm-stat">
+                        <div class="hm-stat-val stat-green" id="hmStatActive">0</div>
+                        <div class="hm-stat-lbl">Active days</div>
+                    </div>
+                    <div class="hm-stat">
+                        <div class="hm-stat-val stat-amber" id="hmStatPeak">0.0</div>
+                        <div class="hm-stat-lbl">Peak CL</div>
+                    </div>
+                    <div class="hm-stat">
+                        <div class="hm-stat-val stat-red" id="hmStatOverload">0</div>
+                        <div class="hm-stat-lbl">Overload Days</div>
+                    </div>
+                </div>
+
+                <div class="hm-body-inner">
+                    <div class="hm-grid-area">
+                        <div class="hm-row-labels">
+                            <div class="hm-row-label weekend">S</div>
+                            <div class="hm-row-label">M</div>
+                            <div class="hm-row-label">T</div>
+                            <div class="hm-row-label">W</div>
+                            <div class="hm-row-label">T</div>
+                            <div class="hm-row-label">F</div>
+                            <div class="hm-row-label weekend">S</div>
+                        </div>
+                        <div class="hm-grid" id="hmGrid"></div>
+                    </div>
+
+                    <div class="hm-legend">
+                        <div class="hm-leg-item">
+                            <div class="hm-leg-swatch" style="background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.2);"></div>
+                            <span>Clear</span>
+                        </div>
+                        <div class="hm-leg-item leg-low">
+                            <div class="hm-leg-swatch" style="background:#10b981;border-color:#10b981;"></div>
+                            <span>&lt;50%</span>
+                        </div>
+                        <div class="hm-leg-item leg-mid">
+                            <div class="hm-leg-swatch" style="background:#f59e0b;border-color:#f59e0b;"></div>
+                            <span>&lt;75%</span>
+                        </div>
+                        <div class="hm-leg-item leg-high">
+                            <div class="hm-leg-swatch" style="background:#FF4747;border-color:#FF4747;"></div>
+                            <span>≥75%</span>
+                        </div>
+                        <div class="hm-leg-item leg-over">
+                            <div class="hm-leg-swatch" style="background:#8b5cf6;border-color:#8b5cf6;"></div>
+                            <span>&gt;100%</span>
+                        </div>
+                    </div>
+                </div>
+
+                
+
+                <div class="hm-desktop-hint" style="text-align: center; font-size: 0.55rem; font-weight: 900; opacity: 0.4; padding: 6px; border-top: 2px solid var(--border-color); text-transform: uppercase; letter-spacing: 1px; background: var(--panel-bg); flex-shrink: 0;">(TAP TO RETURN)</div>
             </div>
         </div>
     </div>
+</div>
 
-    <div class="card-scene w-span-4" id="memoryWedge" onclick="this.classList.toggle('is-flipped')">
-        <div class="card-flipper">
-            <div class="wedge-card card-face card-face-front bg-green">
-                <div class="chart-title" style="color:#111827;"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg> Synapse Integrity</div>
-                <div class="chart-subtitle" style="color:rgba(17,24,39,0.7);">Daily Spaced Repetition Health</div>
-                <div class="donut-wrapper" style="height: 160px;"><canvas id="synapseChart"></canvas><div class="donut-center" style="top: 55%;"><h2 id="synapseScore" style="color:#111827; font-size: 3rem;">0%</h2><p style="color:rgba(17,24,39,0.7);">Secure</p></div></div>
-                <div style="text-align: center; margin-top: auto;"><div id="synapsePending" style="font-size: 1rem; font-weight: 900; color: #111827;">0 pending protocols</div><div style="font-size: 0.7rem; font-weight: 800; opacity: 0.6; color: #111827; margin-top: 5px;">(Tap for Deep Intel)</div></div>
-            </div>
-            <div class="wedge-card card-face card-face-back">
-                <div class="chart-title"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Knowledge Vault</div>
-                <div class="chart-subtitle">Long-Term Pathway Strength (SM-2 Tiering)</div>
-                <div class="back-content-wrapper">
-                    <div class="battery-bar"><div class="bat-segment bg-pink" id="batVolatile" style="width: 33%;"></div><div class="bat-segment bg-yellow" id="batStable" style="width: 33%;"></div><div class="bat-segment bg-green" id="batPermanent" style="width: 34%;"></div></div>
-                    <div class="vault-stats">
-                        <div class="v-stat"><div class="v-stat-left"><span class="legend-dot bg-pink"></span> Volatile (&lt;7d)</div> <span id="valVolatile">0</span></div>
-                        <div class="v-stat"><div class="v-stat-left"><span class="legend-dot bg-yellow"></span> Stable (7-30d)</div> <span id="valStable">0</span></div>
-                        <div class="v-stat"><div class="v-stat-left"><span class="legend-dot bg-green"></span> Permanent (30d+)</div> <span id="valPermanent">0</span></div>
-                    </div>
+<div class="card-scene w-span-4" id="memoryWedge" onclick="this.classList.toggle('is-flipped')">
+    <div class="card-flipper">
+        <div class="wedge-card card-face card-face-front bg-green">
+            <div class="chart-title" style="color:#111827;"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg> Synapse Integrity</div>
+            <div class="chart-subtitle" style="color:rgba(17,24,39,0.7);">Daily Spaced Repetition Health</div>
+            <div class="donut-wrapper" style="height: 160px;"><canvas id="synapseChart"></canvas><div class="donut-center" style="top: 55%;"><h2 id="synapseScore" style="color:#111827; font-size: 3rem;">0%</h2><p style="color:rgba(17,24,39,0.7);">Secure</p></div></div>
+            <div style="text-align: center; margin-top: auto;"><div id="synapsePending" style="font-size: 1rem; font-weight: 900; color: #111827;">0 pending protocols</div><div style="font-size: 0.7rem; font-weight: 800; opacity: 0.6; color: #111827; margin-top: 5px;">(Tap for Deep Intel)</div></div>
+        </div>
+        <div class="wedge-card card-face card-face-back">
+            <div class="chart-title"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Knowledge Vault</div>
+            <div class="chart-subtitle">Long-Term Pathway Strength (SM-2 Tiering)</div>
+            <div class="back-content-wrapper">
+                <div class="battery-bar"><div class="bat-segment bg-pink" id="batVolatile" style="width: 33%;"></div><div class="bat-segment bg-yellow" id="batStable" style="width: 33%;"></div><div class="bat-segment bg-green" id="batPermanent" style="width: 34%;"></div></div>
+                <div class="vault-stats">
+                    <div class="v-stat"><div class="v-stat-left"><span class="legend-dot bg-pink"></span> Volatile (&lt;7d)</div> <span id="valVolatile">0</span></div>
+                    <div class="v-stat"><div class="v-stat-left"><span class="legend-dot bg-yellow"></span> Stable (7-30d)</div> <span id="valStable">0</span></div>
+                    <div class="v-stat"><div class="v-stat-left"><span class="legend-dot bg-green"></span> Permanent (30d+)</div> <span id="valPermanent">0</span></div>
                 </div>
-                <div style="text-align: center; font-size: 0.7rem; font-weight: 800; opacity: 0.6;">(Tap to return)</div>
             </div>
+            <div style="text-align: center; font-size: 0.7rem; font-weight: 800; opacity: 0.6;">(Tap to return)</div>
         </div>
     </div>
+</div>
+
 
 </div><div class="oracle-modal" id="oracleModal">
     <div class="oracle-content">
@@ -1117,7 +1102,6 @@ min-height: 430px;
 
 <div class="hm-tooltip" id="hmTooltip" style="position:fixed;z-index:9999;background:var(--panel-bg);border:3px solid var(--text-main);box-shadow:5px 5px 0px var(--text-main);padding:12px 16px;min-width:180px;max-width:240px;pointer-events:none;display:none;font-family:'Courier New',monospace;border-radius:8px;"></div>
 
-
 <script>
     // ══════════════════════════════════════════════════════════════════════
     // LOCAL CACHE
@@ -1146,27 +1130,36 @@ min-height: 430px;
     window.pendingDriftTasks = [];
 
     // ── NOTIFICATION / BANNER DISMISS STATE ──────────────────────────────
-    let bannerDismissed = false;
+    // ── NOTIFICATION / BANNER DISMISS STATE ──────────────────────────────
+const todayStr = new Date().toDateString();
+let bannerDismissed = localStorage.getItem('matrix_banner_dismissed_date') === todayStr;
 
-    function dismissCurrentBanner() {
-        document.getElementById('overloadBanner').style.display = 'none';
-        document.getElementById('driftBanner').style.display = 'none';
-        bannerDismissed = true;
+function dismissCurrentBanner() {
+    document.getElementById('overloadBanner').style.display = 'none';
+    document.getElementById('driftBanner').style.display = 'none';
+    bannerDismissed = true;
+    localStorage.setItem('matrix_banner_dismissed_date', todayStr);
+    updateNotifDot();
+}
+
+function handleNotifBell() {
+    if (bannerDismissed) {
+        bannerDismissed = false;
+        // Wipe the memory so the banner stays open even if you refresh
+        localStorage.removeItem('matrix_banner_dismissed_date'); 
         updateNotifDot();
+        processForecasting(); // Re-trigger the banner
     }
+}
 
-    function handleNotifBell() {
-        if (bannerDismissed) {
-            bannerDismissed = false;
-            updateNotifDot();
-            processForecasting(); // re-run so the appropriate banner re-appears
-        }
-    }
+function updateNotifDot() {
+    const dot = document.getElementById('notifRedDot');
+    if (dot) dot.style.display = bannerDismissed ? 'block' : 'none';
+}
 
-    function updateNotifDot() {
-        const dot = document.getElementById('notifRedDot');
-        if (dot) dot.style.display = bannerDismissed ? 'block' : 'none';
-    }
+// Force the dot to evaluate immediately on page load
+updateNotifDot(); 
+
 
     // ── SYNC STATUS (live pill) ───────────────────────────────────────────
     function setSyncStatus(state) {
@@ -1343,13 +1336,14 @@ function closeIntelReport() {
                 const PROXY_URL = 'https://oracle-proxy.vgaur.workers.dev';
                 const prompt = `You are the FocusOS Oracle generating a concise Weekly Intelligence Report.\nActive tasks: ${activeTasks.filter(t=>(t.total_work||1)-(t.completed_work||0)>0).map(t=>`${t.subject} (${((t.completed_work||0)/(t.total_work||1)*100).toFixed(0)}% done, deadline: ${t.deadline})`).join('; ')}.\nGenerate exactly 3 tactical insights (1-2 sentences max each).\nRespond ONLY as JSON array: [{"type":"Strength"|"Risk"|"Tactic","text":"..."}]`;
                 const resp = await fetch(PROXY_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
-                if (resp.ok) { 
-                    const d = await resp.json(); 
-                    let raw = d.candidates.content.parts.text.replace(/```json/g,'').replace(/```/g,'').trim();
-                    let match = raw.match(/\[[\s\S]*\]/); 
-                    if (match) raw = match; 
-                    insights = JSON.parse(raw); 
-                    if (!Array.isArray(insights)) throw new Error('Not array'); 
+                if (resp.ok) {
+                    const d = await resp.json();
+                    // ✅ FIX #2: Added [0] indices for candidates and parts arrays
+                    let raw = d.candidates[0].content.parts[0].text.replace(/```json/g,'').replace(/```/g,'').trim();
+                    let match = raw.match(/\[[\s\S]*\]/);
+                    if (match) raw = match[0];
+                    insights = JSON.parse(raw);
+                    if (!Array.isArray(insights)) throw new Error('Not array');
                 }
             } catch(e) { insights = []; }
         }
@@ -1397,7 +1391,7 @@ function closeIntelReport() {
         let lockedCtx = [], elasticCtx = [];
         activeTasks.forEach(t => {
             let remain = (t.total_work||1)-(t.completed_work||0); if (remain<=0) return;
-            let dStr = t.deadline.split('T'); let [y,m,d] = dStr.split('-');
+            let dStr = t.deadline.split('T')[0]; let [y,m,d] = dStr.split('-');
             let deadline = new Date(y,m-1,d); let daysLeft = Math.max(1,Math.round((deadline.getTime()-today.getTime())/86400000)+1);
             let taskCL = MatrixEngine.calculateCognitiveLoad(t.unit,Math.ceil(remain/daysLeft));
             let info = `ID: ${t.id} | Subject: "${t.subject}" | Priority: ${t.priority} | Daily Load: ${taskCL.toFixed(1)} CL`;
@@ -1409,8 +1403,9 @@ function closeIntelReport() {
             const response = await fetch(PROXY_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json();
-            let rawText = data.candidates.content.parts.text.replace(/```json/g,'').replace(/```/g,'').trim();
-            let match = rawText.match(/\{[\s\S]*\}/); if (match) rawText = match;
+            // ✅ FIX #3: Added [0] indices for candidates and parts arrays
+            let rawText = data.candidates[0].content.parts[0].text.replace(/```json/g,'').replace(/```/g,'').trim();
+            let match = rawText.match(/\{[\s\S]*\}/); if (match) rawText = match[0];
             const aiDirective = JSON.parse(rawText);
             pendingOracleActions = aiDirective.actions || [];
             document.getElementById('oracleRationale').innerText = aiDirective.rationale || 'Timeline analysis complete.';
@@ -1431,7 +1426,7 @@ function closeIntelReport() {
         const today = new Date(); today.setHours(0,0,0,0);
         for (const action of pendingOracleActions) {
             const task = activeTasks.find(t => t.id === action.taskId || t.subject === action.taskName);
-            if (task) { let dStr = task.deadline.split('T'); let [y,m,d] = dStr.split('-'); let cur = new Date(parseInt(y),parseInt(m)-1,parseInt(d)); cur.setDate(cur.getDate()+(parseInt(action.daysToDelay,10)||1)); let nd = `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}-${String(cur.getDate()).padStart(2,'0')}`; await supabaseClient.from('study_tasks').update({ deadline: nd }).eq('id', task.id); task.deadline = nd; }
+            if (task) { let dStr = task.deadline.split('T')[0]; let [y,m,d] = dStr.split('-'); let cur = new Date(parseInt(y),parseInt(m)-1,parseInt(d)); cur.setDate(cur.getDate()+(parseInt(action.daysToDelay,10)||1)); let nd = `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}-${String(cur.getDate()).padStart(2,'0')}`; await supabaseClient.from('study_tasks').update({ deadline: nd }).eq('id', task.id); task.deadline = nd; }
         }
         closeOracleModal(); btn.innerText = 'Authorize Override'; btn.disabled = false;
         processForecasting();
@@ -1465,8 +1460,11 @@ function closeIntelReport() {
         const borderColor = rootStyles.getPropertyValue('--text-main').trim() || '#111827';
         timeline.chartDatasets.forEach(ds => { ds.borderColor = borderColor; });
         document.getElementById('valActivePlans').innerText = timeline.totalActive;
-        const todayCL = timeline.strictCL || 0;
+
+        // ✅ FIX #1: timeline.strictCL is an array — use [0] for today's value
+        const todayCL = (timeline.strictCL && timeline.strictCL[0]) ? timeline.strictCL[0] : 0;
         document.getElementById('valTotalLoad').innerHTML = `${todayCL.toFixed(1)}<span>CL</span>`;
+
         if (timeline.totalDebt > 0) document.getElementById('greetingText').innerHTML = `<span style="color: #FF4747;">⚠️ Alert: ${timeline.totalDebt} Overdue Operations</span>`;
         else document.getElementById('greetingText').innerText = 'All timelines stable.';
         const overloadBanner = document.getElementById('overloadBanner'); const driftBanner = document.getElementById('driftBanner');
@@ -1487,13 +1485,12 @@ function closeIntelReport() {
                     document.getElementById('btnAuthorizeDrift').innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> Authorize Drift (-${timeline.pendingDriftTasks.length * 2} XP)`;
                 }
             }
-            // if bannerDismissed, keep banners hidden and keep red dot visible
-        } else {
-            // No overload — always hide banners and reset dismiss state
+                } else {
             overloadBanner.style.display = 'none';
             driftBanner.style.display = 'none';
             if (bannerDismissed) {
                 bannerDismissed = false;
+                localStorage.removeItem('matrix_banner_dismissed_date'); // <-- New line here
                 updateNotifDot();
             }
         }
@@ -1507,7 +1504,7 @@ function closeIntelReport() {
         if (req===0) msg.innerText = "Matrix clear. You're ahead!"; else if (done>=req) msg.innerText = 'Operations successful today.'; else msg.innerText = 'Execute missions in tracker.';
         let pct = req === 0 ? 100 : Math.min(100, (done/req)*100);
         const rs = getComputedStyle(document.documentElement); const primary = rs.getPropertyValue('--primary').trim(); const empty = rs.getPropertyValue('--bg-color').trim();
-        if (burnChartInstance) { burnChartInstance.data.datasets.data = [pct, 100-pct]; burnChartInstance.update(); }
+        if (burnChartInstance) { burnChartInstance.data.datasets[0].data = [pct, 100-pct]; burnChartInstance.update(); }
         else { let ctx = document.getElementById('burnChart').getContext('2d'); burnChartInstance = new Chart(ctx, { type: 'doughnut', data: { datasets: [{ data: [pct, 100-pct], backgroundColor: [primary, empty], borderColor: borderCol, borderWidth: 3, cutout: '75%', borderRadius: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { enabled: false } }, animation: { animateScale: true } } }); }
     }
 
@@ -1530,7 +1527,7 @@ function closeIntelReport() {
         let integrityPct = dueToday === 0 ? 100 : Math.round((doneToday/dueToday)*100);
         document.getElementById('synapseScore').innerText = integrityPct + '%';
         document.getElementById('synapsePending').innerText = `${Math.max(0, dueToday-doneToday)} pending protocols`;
-        if (synapseInstance) { synapseInstance.data.datasets.data = [integrityPct, 100-integrityPct]; synapseInstance.update(); }
+        if (synapseInstance) { synapseInstance.data.datasets[0].data = [integrityPct, 100-integrityPct]; synapseInstance.update(); }
         else { let ctx = document.getElementById('synapseChart').getContext('2d'); synapseInstance = new Chart(ctx, { type: 'doughnut', data: { datasets: [{ data: [integrityPct, 100-integrityPct], backgroundColor: ['#111827','rgba(17,24,39,0.1)'], borderWidth: 0, cutout: '75%', circumference: 180, rotation: -90, borderRadius: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { enabled: false } }, animation: { animateScale: true } } }); }
         let total = vCount+sCount+pCount;
         document.getElementById('batVolatile').style.width = (total===0?33.3:(vCount/total)*100)+'%';
@@ -1639,8 +1636,8 @@ function closeIntelReport() {
             activeTasks.forEach(t => {
                 try {
                     if (t.deadline) {
-                        let [y,m] = t.deadline.split('T').split('-');
-                        let ty = parseInt(y), tm = parseInt(m)-1;
+                        let parts = t.deadline.split('T')[0].split('-');
+                        let ty = parseInt(parts[0]), tm = parseInt(parts[1])-1;
                         if (ty > maxYear || (ty === maxYear && tm > maxMonth)) { maxYear = ty; maxMonth = tm; }
                     }
                 } catch(e) {}
