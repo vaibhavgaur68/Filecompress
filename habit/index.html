@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en" data-theme="default">
 <head>
 <meta charset="UTF-8">
@@ -7,6 +8,8 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,200;0,9..144,700;1,9..144,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
 <style>
 :root {
   --bg: #f8f6f2; --surface: #fff; --surface2: #f2efe9; --text: #1a1814; --muted: #8a8070; --border: #e8e2d8;
@@ -249,15 +252,21 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:13
 .ai-tab.active{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-color:transparent;}
 .ai-chat{background:var(--surface2);border-radius:var(--r);padding:16px;min-height:220px;max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;}
 .ai-chat::-webkit-scrollbar{width:4px;} .ai-chat::-webkit-scrollbar-thumb{background:var(--border);}
-.chat-msg{max-width:85%;animation:fadeIn .3s ease;}
-@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.chat-msg{max-width:85%;animation:msgFadeIn .35s ease both;}
+@keyframes msgFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .chat-msg.user{align-self:flex-end;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:10px 14px;border-radius:12px 12px 2px 12px;font-size:0.78rem;}
 .chat-msg.ai{align-self:flex-start;background:var(--surface);border:1px solid var(--border);padding:12px 14px;border-radius:12px 12px 12px 2px;font-size:0.78rem;line-height:1.6;color:var(--text);}
-.chat-msg.ai.thinking{color:var(--muted);font-style:italic;}
 
-/* Typing cursor animation */
-.typing-cursor::after{content:'▍';display:inline-block;animation:blink .7s step-end infinite;color:var(--accent);}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+/* ── Thinking dots loader ── */
+.thinking-dots{display:inline-flex;align-items:center;gap:5px;padding:2px 4px;}
+.thinking-dots span{width:7px;height:7px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:inline-block;animation:dotBounce 1.2s ease-in-out infinite;}
+.thinking-dots span:nth-child(2){animation-delay:.2s;}
+.thinking-dots span:nth-child(3){animation-delay:.4s;}
+@keyframes dotBounce{0%,80%,100%{transform:scale(0.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+
+/* ── AI markdown render fade-in ── */
+@keyframes aiFadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.ai-rendered{animation:aiFadeIn .4s ease both;}
 
 .ai-input-row{display:flex;gap:8px;}
 .ai-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 14px;font-family:var(--font);font-size:0.78rem;color:var(--text);outline:none;transition:var(--transition);}
@@ -268,9 +277,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:13
 .quick-prompts{display:flex;flex-wrap:wrap;gap:6px;}
 .quick-chip{padding:5px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;font-size:0.68rem;cursor:pointer;color:var(--muted);font-family:var(--font);transition:var(--transition);}
 .quick-chip:hover{background:var(--border);color:var(--text);}
-
-/* AI model badge */
-.ai-model-badge{display:inline-flex;align-items:center;gap:5px;font-size:0.6rem;letter-spacing:1px;color:rgba(232,224,255,.6);background:rgba(255,255,255,.06);padding:3px 8px;border-radius:20px;border:1px solid rgba(255,255,255,.1);margin-top:6px;position:relative;}
 
 /* Toast */
 .toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 18px;box-shadow:var(--shadow-lg);font-size:0.78rem;font-weight:600;z-index:300;opacity:0;transform:translateY(12px);transition:var(--transition);pointer-events:none;}
@@ -284,7 +290,21 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:13
 .ins-grid{grid-template-columns:1fr;}
 .modal.md,.modal.lg{width:100%;}
 }
+
+/* AI Markdown Styling */
+.chat-msg.ai ul, .chat-msg.ai ol { margin-left: 20px; margin-bottom: 8px; }
+.chat-msg.ai li { margin-bottom: 3px; }
+.chat-msg.ai table { border-collapse: collapse; width: 100%; font-size: 0.7rem; margin: 10px 0; }
+.chat-msg.ai th, .chat-msg.ai td { border: 1px solid var(--border); padding: 5px 9px; text-align: left; }
+.chat-msg.ai th { background: var(--surface2); font-weight: 600; }
+.chat-msg.ai p { margin-bottom: 7px; }
+.chat-msg.ai p:last-child { margin-bottom: 0; }
+.chat-msg.ai strong { color: var(--accent); }
+.chat-msg.ai h1,.chat-msg.ai h2,.chat-msg.ai h3 { font-size: 0.85rem; margin: 10px 0 5px; font-weight: 700; }
+.chat-msg.ai code { background: var(--surface2); padding: 1px 5px; border-radius: 3px; font-size: 0.72rem; }
+.chat-msg.ai blockquote { border-left: 3px solid var(--accent); margin-left: 0; padding-left: 10px; color: var(--muted); }
 </style>
+
 </head>
 <body>
 
@@ -373,8 +393,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:13
     <button class="close-btn" onclick="closeModal('aiModal')" style="color:#e8e0ff;">×</button>
     <div class="ai-modal-header">
       <div class="ai-title">✦ AI Habit Coach</div>
-      <div class="ai-subtitle">Powered by Gemini API · Personalized Guidance</div>
-      <div class="ai-model-badge">gemini-2.0-flash · google</div>
+      <div class="ai-subtitle">Personalized Guidance</div>
       <div class="ai-orb">✦</div>
     </div>
     <div class="ai-body">
@@ -391,7 +410,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:13
         <span class="quick-chip" onclick="sendQuick(this)">Give me a challenge</span>
       </div>
       <div class="ai-chat" id="aiChat">
-        <div class="chat-msg ai">Hey! I'm your AI habit coach, powered by Gemini. I can analyze your tracking data, suggest improvements, build weekly plans, and answer questions about your habits. What would you like to explore? ✦</div>
+        <div class="chat-msg ai">Hey! I'm your AI habit coach. I can analyze your tracking data, suggest improvements, build weekly plans, and answer questions about your habits. What would you like to explore? ✦</div>
       </div>
       <div class="ai-input-row">
         <input class="ai-input" id="aiInput" placeholder="Ask me anything about your habits..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAIMsg();}">
@@ -410,40 +429,42 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:13
       <div class="quote-sub" contenteditable="true" id="quoteSub" onblur="saveQuotes()">Focused, intentional, and ready.</div>
     </div>
 
-    <div class="today-panel">
-      <div class="panel-header">
-        <span class="panel-label">TODAY'S CHECK-IN</span>
-        <span class="date-badge" id="todayBadge"></span>
-      </div>
-      <div class="today-list" id="todayList"></div>
-      <div class="progress-bar"><div class="progress-fill" id="todayFill"></div></div>
-    </div>
 
-    <button class="habits-toggle-btn" id="habitsToggle" onclick="toggleHabitsPanel()">
-      <span>⚙ Manage Habits</span>
-      <span class="toggle-arrow">▾</span>
-    </button>
-    <div class="habits-panel" id="habitsPanel">
-      <div class="habits-panel-label">DAILY HABITS</div>
-      <div class="habit-names" id="habitNames"></div>
-      <button class="add-habit-btn" onclick="addHabit()">+ Add Habit</button>
-    </div>
+<div class="today-panel">
+  <div class="panel-header">
+    <span class="panel-label">TODAY'S CHECK-IN</span>
+    <span class="date-badge" id="todayBadge"></span>
+  </div>
+  <div class="today-list" id="todayList"></div>
+  <div class="progress-bar"><div class="progress-fill" id="todayFill"></div></div>
+</div>
 
-    <div class="sb-btn-row">
-      <button class="sb-btn shop" onclick="openShop()">🛒 Shop</button>
-      <button class="sb-btn insights" onclick="openInsights()">📊 Insights</button>
-      <button class="sb-btn ai" onclick="openAI()">
-        <span>✦ AI Coach</span>
-        <span class="ai-stars">✦</span>
-      </button>
-    </div>
+<button class="habits-toggle-btn" id="habitsToggle" onclick="toggleHabitsPanel()">
+  <span>⚙ Manage Habits</span>
+  <span class="toggle-arrow">▾</span>
+</button>
+<div class="habits-panel" id="habitsPanel">
+  <div class="habits-panel-label">DAILY HABITS</div>
+  <div class="habit-names" id="habitNames"></div>
+  <button class="add-habit-btn" onclick="addHabit()">+ Add Habit</button>
+</div>
 
-    <div class="data-row">
-      <button class="data-btn" onclick="exportData()">↑ Export</button>
-      <button class="data-btn" onclick="document.getElementById('fileIn').click()">↓ Import</button>
-      <button class="data-btn danger" onclick="clearMonth()">✕ Clear</button>
-    </div>
-    <input type="file" id="fileIn" hidden accept=".json" onchange="importData(event)">
+<div class="sb-btn-row">
+  <button class="sb-btn shop" onclick="openShop()">🛒 Shop</button>
+  <button class="sb-btn insights" onclick="openInsights()">📊 Insights</button>
+  <button class="sb-btn ai" onclick="openAI()">
+    <span>✦ AI Coach</span>
+    <span class="ai-stars">✦</span>
+  </button>
+</div>
+
+<div class="data-row">
+  <button class="data-btn" onclick="exportData()">↑ Export</button>
+  <button class="data-btn" onclick="document.getElementById('fileIn').click()">↓ Import</button>
+  <button class="data-btn danger" onclick="clearMonth()">✕ Clear</button>
+</div>
+<input type="file" id="fileIn" hidden accept=".json" onchange="importData(event)">
+
 
   </aside>
 
@@ -655,16 +676,7 @@ function updateDashboard() {
   calcXp = calcGlobalXP();
   if (player.spentXp > calcXp) { player.spentXp = calcXp; saveData(); }
   const lv = Math.floor(calcXp/500)+1;
-  const ranks = [
-    [1, "The Initiate"],
-    [5, "The Apprentice"],
-    [10, "The Consistent"],
-    [20, "The Dedicated"],
-    [35, "The Disciplined"],
-    [50, "The Architect"],
-    [75, "The Master"],
-    [100, "The Legend"]
-  ];
+  const ranks = [[1,"The Initiate"],[5,"The Apprentice"],[10,"The Consistent"],[20,"The Dedicated"],[35,"The Disciplined"],[50,"The Architect"],[75,"The Master"],[100,"The Legend"]];
   let rank = ranks;
   for (const [lvReq, r] of ranks) { if (lv >= lvReq) rank = r; }
   const lvXp = calcXp % 500, pct = (lvXp/500)*100, avail = calcXp - player.spentXp;
@@ -764,11 +776,10 @@ function updateLineChart(data, days) {
   const lc     = getComputedStyle(document.documentElement).getPropertyValue('--purple').trim();
   
   if (chartInst) {
-    const dataset = chartInst.data.datasets;
     chartInst.data.labels = labels;
-    dataset.data = pcts;
-    dataset.borderColor = lc;
-    dataset.backgroundColor = lc+'22';
+    chartInst.data.datasets.data = pcts;
+    chartInst.data.datasets.borderColor = lc;
+    chartInst.data.datasets.backgroundColor = lc+'22';
     chartInst.update();
   } else {
     chartInst = new Chart(ctx, {
@@ -854,8 +865,7 @@ function buyItem(type, cost) {
   if (type==='freeze') {
     if (avail>=cost){player.spentXp+=cost;player.freezes++;saveData();updateDashboard();openShop();showToast("❄️ Freeze purchased!");}
   } else if (type.startsWith('theme_')) {
-    const parts = type.split('_');
-    const name = parts;
+    const name = type.split('_');
     if (player.unlockedThemes.includes(name)){
       player.currentTheme=name; applyTheme(name); saveData(); openShop(); updateDashboard();
     } else if (avail>=cost){
@@ -914,9 +924,241 @@ function openInsights() {
   document.getElementById('insightsModal').classList.add('on');
 }
 
-/* ─────────────────────────────────────────────────────
-   AI COACH — Powered by Google Gemini API
-───────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   DEEP DATA CONTEXT — feeds the AI coach with rich analytics
+═══════════════════════════════════════════════════════════ */
+function buildDataContext() {
+  const today      = new Date();
+  const todayDate  = today.getDate();
+  const todayMonth = today.getMonth();
+  const todayYear  = today.getFullYear();
+  const days       = getDays();
+  const md         = appData[curYear]?.[curMonth] || {};
+  const monthName  = today.toLocaleString('en-US', { month: 'long' });
+  const viewedMonthName = new Date(curYear, curMonth).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  const dayNames   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  let out = '';
+
+  /* ── 1. OVERVIEW ── */
+  out += `=== RITUAL HABIT TRACKER — FULL DATA REPORT ===\n`;
+  out += `Today: ${today.toDateString()} (${dayNames[today.getDay()]})\n`;
+  out += `Currently viewing: ${viewedMonthName}\n`;
+  out += `Habits tracked: ${habits.length} — [${habits.join(', ')}]\n\n`;
+
+  /* ── 2. PLAYER STATUS ── */
+  const lv   = Math.floor(calcXp / 500) + 1;
+  const avail = calcXp - player.spentXp;
+  const ranks = [[1,"The Initiate"],[5,"The Apprentice"],[10,"The Consistent"],[20,"The Dedicated"],[35,"The Disciplined"],[50,"The Architect"],[75,"The Master"],[100,"The Legend"]];
+  let rank = "The Initiate";
+  for (const [lvReq, r] of ranks) { if (lv >= lvReq) rank = r; }
+  out += `=== PLAYER STATUS ===\n`;
+  out += `Level: ${lv} (${rank})\n`;
+  out += `Total XP earned: ${calcXp} | XP spent: ${player.spentXp} | Available sparks: ${avail}\n`;
+  out += `Streak freezes owned: ${player.freezes}\n\n`;
+
+  /* ── 3. CURRENT MONTH BREAKDOWN ── */
+  const isCurMonth = (curYear === todayYear && curMonth === todayMonth);
+  const lastTrackedDay = isCurMonth ? todayDate : days;
+  let monthTotal = 0, monthPerfect = 0;
+  const habitMonthStats = habits.map((h, hi) => {
+    let cnt = 0, longestStreak = 0, curStreak = 0, missStreak = 0, longestMiss = 0;
+    let firstDone = null, lastDone = null;
+    for (let d = 1; d <= lastTrackedDay; d++) {
+      if (md[hi]?.[d]) {
+        cnt++; monthTotal++; curStreak++; missStreak = 0;
+        longestStreak = Math.max(longestStreak, curStreak);
+        if (!firstDone) firstDone = d;
+        lastDone = d;
+      } else {
+        longestMiss = Math.max(longestMiss, ++missStreak);
+        curStreak = 0;
+      }
+    }
+    const pct = lastTrackedDay ? ((cnt / lastTrackedDay) * 100).toFixed(1) : '0.0';
+    const streak = getStreak(hi, md, days);
+    return { name: h, cnt, pct, streak, longestStreak, longestMiss, firstDone, lastDone, curStreak };
+  });
+  for (let d = 1; d <= lastTrackedDay; d++) {
+    if (habits.length && habits.every((_, i) => md[i]?.[d])) monthPerfect++;
+  }
+  const overallPct = habits.length && lastTrackedDay ? ((monthTotal / (habits.length * lastTrackedDay)) * 100).toFixed(1) : '0.0';
+
+  out += `=== ${viewedMonthName.toUpperCase()} — MONTH STATS ===\n`;
+  out += `Days tracked so far: ${lastTrackedDay} of ${days}\n`;
+  out += `Overall completion: ${overallPct}% (${monthTotal} / ${habits.length * lastTrackedDay} possible check-ins)\n`;
+  out += `Perfect days (all habits done): ${monthPerfect}\n\n`;
+
+  out += `Per-habit breakdown for ${viewedMonthName}:\n`;
+  habitMonthStats.forEach(h => {
+    out += `  • ${h.name}: ${h.cnt}/${lastTrackedDay} days (${h.pct}%), current streak: ${h.curStreak} days, best streak this month: ${h.longestStreak} days, longest gap/miss: ${h.longestMiss} days\n`;
+  });
+  out += '\n';
+
+  /* ── 4. TODAY'S STATUS ── */
+  if (isCurMonth) {
+    const todayDone = habits.filter((_, i) => md[i]?.[todayDate]).length;
+    out += `=== TODAY (${today.toDateString()}) ===\n`;
+    out += `Completed ${todayDone} / ${habits.length} habits today\n`;
+    habits.forEach((h, i) => {
+      out += `  ${md[i]?.[todayDate] ? '✓' : '✗'} ${h}\n`;
+    });
+    out += '\n';
+  }
+
+  /* ── 5. DAY-OF-WEEK PATTERNS (all-time) ── */
+  const dowCounts  = new Array(7).fill(0);
+  const dowTotals  = new Array(7).fill(0);
+  for (let y in appData) for (let m in appData[y]) {
+    const dd = new Date(+y, +m + 1, 0).getDate();
+    for (let d = 1; d <= dd; d++) {
+      const dt = new Date(+y, +m, d);
+      if (dt > today) continue;
+      const dow = dt.getDay();
+      habits.forEach((_, i) => {
+        dowTotals[dow]++;
+        if (appData[y][m][i]?.[d]) dowCounts[dow]++;
+      });
+    }
+  }
+  out += `=== DAY-OF-WEEK PATTERNS (all-time) ===\n`;
+  let bestDow = -1, bestDowPct = -1, worstDow = -1, worstDowPct = 101;
+  dowTotals.forEach((t, i) => {
+    if (t === 0) return;
+    const p = ((dowCounts[i] / t) * 100).toFixed(1);
+    out += `  ${dayNames[i]}: ${p}% completion (${dowCounts[i]} / ${t})\n`;
+    if (+p > bestDowPct)  { bestDowPct = +p;  bestDow = i; }
+    if (+p < worstDowPct) { worstDowPct = +p; worstDow = i; }
+  });
+  if (bestDow >= 0)  out += `  → Best day: ${dayNames[bestDow]} (${bestDowPct.toFixed(1)}%)\n`;
+  if (worstDow >= 0) out += `  → Worst day: ${dayNames[worstDow]} (${worstDowPct.toFixed(1)}%)\n`;
+  out += '\n';
+
+  /* ── 6. MONTHLY TREND (all recorded months) ── */
+  out += `=== MONTHLY COMPLETION TREND ===\n`;
+  const monthlyData = [];
+  for (let y in appData) {
+    for (let m in appData[y]) {
+      const dd = new Date(+y, +m + 1, 0).getDate();
+      let t = 0, c = 0;
+      for (let d = 1; d <= dd; d++) {
+        const dt = new Date(+y, +m, d);
+        if (dt > today) continue;
+        habits.forEach((_, i) => { t++; if (appData[y][m][i]?.[d]) c++; });
+      }
+      if (t > 0) {
+        const pct = ((c / t) * 100).toFixed(1);
+        monthlyData.push({ label: `${monthNames[+m]} ${y}`, pct: +pct, checks: c, total: t });
+      }
+    }
+  }
+  monthlyData.sort((a, b) => {
+    // sort chronologically
+    const [aMon, aYr] = [a.label.split(' ')[0], a.label.split(' ')[1]];
+    const [bMon, bYr] = [b.label.split(' ')[0], b.label.split(' ')[1]];
+    return (+aYr - +bYr) || (monthNames.indexOf(aMon) - monthNames.indexOf(bMon));
+  });
+  if (monthlyData.length === 0) {
+    out += `  No multi-month data yet.\n`;
+  } else {
+    monthlyData.forEach(d => out += `  ${d.label}: ${d.pct}% (${d.checks}/${d.total})\n`);
+    if (monthlyData.length >= 2) {
+      const last  = monthlyData[monthlyData.length - 1].pct;
+      const prev  = monthlyData[monthlyData.length - 2].pct;
+      const delta = (last - prev).toFixed(1);
+      out += `  → Trend: ${delta >= 0 ? '+' : ''}${delta}% vs previous month\n`;
+    }
+  }
+  out += '\n';
+
+  /* ── 7. PER-HABIT DEEP STATS (all-time) ── */
+  out += `=== PER-HABIT ALL-TIME STATS ===\n`;
+  habits.forEach((h, hi) => {
+    let totalDone = 0, totalPossible = 0, bestStreak = 0, curStr = 0;
+    let bestMonth = null, bestMonthPct = -1;
+    for (let y in appData) for (let m in appData[y]) {
+      const dd = new Date(+y, +m + 1, 0).getDate();
+      let mDone = 0, mPossible = 0;
+      for (let d = 1; d <= dd; d++) {
+        const dt = new Date(+y, +m, d);
+        if (dt > today) continue;
+        mPossible++;
+        if (appData[y][m][hi]?.[d]) {
+          totalDone++; mDone++; curStr++;
+          bestStreak = Math.max(bestStreak, curStr);
+        } else { curStr = 0; }
+        totalPossible++;
+      }
+      const mp = mPossible > 0 ? (mDone / mPossible) * 100 : 0;
+      if (mp > bestMonthPct) { bestMonthPct = mp; bestMonth = `${monthNames[+m]} ${y}`; }
+    }
+    const allTimePct = totalPossible > 0 ? ((totalDone / totalPossible) * 100).toFixed(1) : '0.0';
+    out += `  • ${h}:\n`;
+    out += `    All-time: ${allTimePct}% (${totalDone} done / ${totalPossible} days tracked)\n`;
+    out += `    Best all-time streak: ${bestStreak} days\n`;
+    if (bestMonth) out += `    Best month: ${bestMonth} (${bestMonthPct.toFixed(1)}%)\n`;
+  });
+  out += '\n';
+
+  /* ── 8. WEEKLY BREAKDOWN (current month) ── */
+  out += `=== WEEKLY BREAKDOWN — ${viewedMonthName} ===\n`;
+  for (let w = 1; w <= 5; w++) {
+    const wStart = (w - 1) * 7 + 1, wEnd = Math.min(w * 7, days);
+    let wDone = 0, wPossible = 0;
+    for (let d = wStart; d <= wEnd; d++) {
+      if (d > lastTrackedDay) break;
+      habits.forEach((_, i) => {
+        wPossible++;
+        if (md[i]?.[d]) wDone++;
+      });
+    }
+    if (wPossible > 0) {
+      const wpct = ((wDone / wPossible) * 100).toFixed(0);
+      out += `  Week ${w} (Days ${wStart}–${wEnd}): ${wpct}% (${wDone}/${wPossible})\n`;
+    }
+  }
+  out += '\n';
+
+  /* ── 9. CONSISTENCY ANALYSIS ── */
+  out += `=== CONSISTENCY INSIGHTS ===\n`;
+  // Habits sorted by completion rate desc
+  const sorted = [...habitMonthStats].sort((a, b) => +b.pct - +a.pct);
+  if (sorted.length > 0) {
+    out += `  Strongest habit this month: "${sorted[0].name}" at ${sorted[0].pct}%\n`;
+    out += `  Weakest habit this month:   "${sorted[sorted.length-1].name}" at ${sorted[sorted.length-1].pct}%\n`;
+    const avg = (habitMonthStats.reduce((s, h) => s + +h.pct, 0) / (habitMonthStats.length || 1)).toFixed(1);
+    out += `  Average habit completion:   ${avg}%\n`;
+  }
+  const struggling = habitMonthStats.filter(h => +h.pct < 50);
+  if (struggling.length > 0) out += `  Habits below 50% this month: ${struggling.map(h => `"${h.name}" (${h.pct}%)`).join(', ')}\n`;
+  const perfect100 = habitMonthStats.filter(h => +h.pct >= 95);
+  if (perfect100.length > 0) out += `  Near-perfect habits (≥95%): ${perfect100.map(h => `"${h.name}"`).join(', ')}\n`;
+  out += '\n';
+
+  /* ── 10. GLOBAL TOTALS ── */
+  let gTotal = 0, gPossible = 0, gPerfect = 0;
+  for (let y in appData) for (let m in appData[y]) {
+    const dd = new Date(+y, +m + 1, 0).getDate();
+    for (let d = 1; d <= dd; d++) {
+      const dt = new Date(+y, +m, d);
+      if (dt > today) continue;
+      let cnt = 0;
+      habits.forEach((_, i) => { gPossible++; if (appData[y][m][i]?.[d]) { gTotal++; cnt++; } });
+      if (cnt === habits.length && habits.length) gPerfect++;
+    }
+  }
+  out += `=== ALL-TIME TOTALS ===\n`;
+  out += `Total check-ins: ${gTotal} / ${gPossible} possible (${gPossible > 0 ? ((gTotal/gPossible)*100).toFixed(1) : 0}%)\n`;
+  out += `Perfect days ever: ${gPerfect}\n`;
+  out += `Total XP: ${calcXp}\n`;
+
+  return out;
+}
+
+/* ═══════════════════════════════════════════════════
+   AI COACH — message send & display
+═══════════════════════════════════════════════════ */
 function openAI() {
   document.getElementById('aiModal').classList.add('on');
 }
@@ -940,56 +1182,20 @@ function sendQuick(el) {
   sendAIMsg();
 }
 
-function buildDataContext() {
-  const days = getDays();
-  const md   = appData[curYear]?.[curMonth] || {};
-  let summary = `The user tracks these habits: ${habits.join(', ')}.\n`;
-  summary += `Viewing: ${new Date(curYear, curMonth).toLocaleString('en-US',{month:'long',year:'numeric'})}.\n`;
-
-  let totalChecks = 0, perfectDays = 0;
-  const habitStats = habits.map((h, hi) => {
-    let cnt = 0;
-    for (let d=1;d<=days;d++) if(md[hi]?.[d]){ cnt++; totalChecks++; }
-    const streak = getStreak(hi, md, days);
-    return `  - ${h}: ${cnt}/${days} days (${((cnt/days)*100).toFixed(0)}%), current streak: ${streak} days`;
-  });
-  for (let d=1;d<=days;d++) {
-    if (habits.every((_,i)=>md[i]?.[d])) perfectDays++;
-  }
-
-  const lv    = Math.floor(calcXp/500)+1;
-  const avail = calcXp - player.spentXp;
-
-  summary += `Month stats: ${totalChecks} total check-ins, ${perfectDays} perfect days (all habits done).\n`;
-  summary += `Player: Level ${lv}, ${calcXp} total XP, ${avail} sparks available, ${player.freezes} streak freezes.\n`;
-  summary += `Per-habit breakdown:\n${habitStats.join('\n')}`;
-  return summary;
-}
-
-/* Typewriter effect — streams text char by char */
-function typeWriter(el, text, speed = 14) {
-  return new Promise(resolve => {
-    el.classList.add('typing-cursor');
-    let i = 0;
-    el.textContent = '';
-    const iv = setInterval(() => {
-      el.textContent += text[i++];
-      el.parentElement.scrollTop = el.parentElement.scrollHeight;
-      if (i >= text.length) {
-        clearInterval(iv);
-        el.classList.remove('typing-cursor');
-        resolve();
-      }
-    }, speed);
-  });
-}
-
 const tabSystemPrompts = {
-  chat: `You are a warm, concise habit coach. Respond in 2–4 sentences. Be specific, reference the user's actual habit names and numbers when relevant. Be encouraging but honest. No markdown formatting — plain text only.`,
-  analyze: `You are a precise data analyst specializing in habit tracking. Give specific numerical insights, identify patterns (e.g. which habit is dragging the average, which day they consistently fail). Be incisive and data-driven. Reference exact habit names and percentages. Plain text only, no markdown.`,
-  plan: `You are a productivity planner. Create a practical, structured weekly plan referencing the user's actual tracked habits. Suggest which habits to prioritize on which days based on their data. Use a simple text format (e.g. "Mon: ..."). No markdown symbols.`,
-  habits: `You are a habit design expert. Suggest 3 specific, science-backed habits that complement the user's existing ones. For each: name it, give a one-line rationale, and suggest when to do it. Reference what they already track. Plain text only.`
+  chat: `You are a warm, concise habit coach. Respond in 2–4 sentences. Be specific — reference the user's actual habit names and exact numbers from their data. Be encouraging but honest. Use markdown (bold, lists) for clarity.`,
+  analyze: `You are a precise data analyst specializing in habit tracking. Give specific numerical insights, identify patterns (e.g. which habit is dragging the average, which day they consistently fail). Be incisive and data-driven. Reference exact habit names and percentages from the data provided. Use markdown tables and bold text to highlight key trends.`,
+  plan: `You are a productivity planner. Create a practical, structured weekly plan referencing the user's actual tracked habits by name. Suggest which habits to prioritize on which days based on their day-of-week data and current streaks. Use markdown headers and lists.`,
+  habits: `You are a habit design expert. Suggest 3 specific, science-backed habits that complement the user's existing ones. For each: name it, give a one-line rationale tied to what they already track, and suggest when to do it. Use markdown bolding and bullet points.`
 };
+
+/* ── Animated thinking dots bubble ── */
+function makeThinkingBubble() {
+  const el = document.createElement('div');
+  el.className = 'chat-msg ai';
+  el.innerHTML = `<div class="thinking-dots"><span></span><span></span><span></span></div>`;
+  return el;
+}
 
 async function sendAIMsg() {
   const input   = document.getElementById('aiInput');
@@ -1007,61 +1213,53 @@ async function sendAIMsg() {
   chat.appendChild(uBubble);
   chat.scrollTop = chat.scrollHeight;
 
-  /* Thinking bubble */
-  const thinkBubble = document.createElement('div');
-  thinkBubble.className = 'chat-msg ai thinking';
-  thinkBubble.textContent = '✦ Thinking...';
+  /* Pulsing dots while waiting */
+  const thinkBubble = makeThinkingBubble();
   chat.appendChild(thinkBubble);
   chat.scrollTop = chat.scrollHeight;
   sendBtn.disabled = true;
 
-  /* Build system prompt with live data context */
-  const dataCtx   = buildDataContext();
-  const sysPrompt = `${tabSystemPrompts[aiCurrentTab] || tabSystemPrompts.chat}\n\nUser's current habit data:\n${dataCtx}`;
+  /* Build system prompt with full deep context */
+  const dataCtx  = buildDataContext();
+  const sysPrompt = `${tabSystemPrompts[aiCurrentTab] || tabSystemPrompts.chat}\n\nHere is the user's complete habit tracking data:\n${dataCtx}`;
 
-  /* Push user message to history in Gemini format */
-  aiHistory.push({ role: "user", parts: [{ text: msg }] });
+  aiHistory.push({ role: "user", content: msg });
 
   try {
-    /* ⚠️ REPLACE THIS STRING WITH YOUR ACTUAL GEMINI API KEY ⚠️ */
-    const API_KEY = "AIzaSyB9XRiXATYTFi1lVFn2vSRWl2XDt_JtxR4"; 
+    const API_KEY = "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";
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`, {
+    const messagesPayload = [
+      { role: "system", content: sysPrompt }
+    ].concat(aiHistory.slice(-12));
+
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${API_KEY}`
+      },
       body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: sysPrompt }]
-        },
-        contents: aiHistory.slice(-12) /* keep last 12 turns */
+        model: "llama-3.3-70b-versatile",
+        messages: messagesPayload,
+        temperature: 0.7,
+        max_tokens: 1000
       })
     });
 
     const data = await response.json();
 
-    if (data.error) {
-      throw new Error(data.error.message);
-    }
-    
-    if (!data.candidates || data.candidates.length === 0) {
-      throw new Error("No response from AI.");
-    }
+    if (data.error) throw new Error(data.error.message);
+    if (!data.choices || data.choices.length === 0) throw new Error("No response from AI.");
 
-    const reply = data.candidates.content.parts.text;
+    const reply = data.choices[0].message.content;
+    aiHistory.push({ role: "assistant", content: reply });
 
-    /* Push AI reply to history in Gemini format */
-    aiHistory.push({ role: "model", parts: [{ text: reply }] });
-
-    /* Typewriter reveal */
-    thinkBubble.className = 'chat-msg ai';
-    thinkBubble.textContent = '';
-    await typeWriter(thinkBubble, reply, 12);
+    /* Replace dots with rendered markdown — fade in cleanly */
+    thinkBubble.innerHTML = `<div class="ai-rendered">${marked.parse(reply)}</div>`;
 
   } catch (err) {
-    aiHistory.pop(); /* remove failed user turn */
-    thinkBubble.className = 'chat-msg ai';
-    thinkBubble.classList.remove('typing-cursor');
-    thinkBubble.textContent = `⚠️ Error: ${err.message}`;
+    aiHistory.pop();
+    thinkBubble.innerHTML = `<span style="color:#ff6b6b">⚠️ Error: ${err.message}</span>`;
   }
 
   sendBtn.disabled = false;
